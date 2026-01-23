@@ -1,3 +1,5 @@
+const path = require("path");
+
 /*
     getInitialECI()
     Returns the ECI of the UI pico as a javascript object--currently hardcoded to http://localhost:3000.
@@ -54,15 +56,23 @@ async function getManifoldECI(eci) {
     Note: filePath requires the same "file:///..." convention as the pico-engine UI
 */
 async function installRuleset(eci, filePath) {
+    console.log("Filepath: ", filePath);
     try {
+        // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
         const response = await fetch(
             `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
             {
                 method: "POST",
-                body: JSON.stringify({ url: `${filePath}`, config: {} })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: ` ${filePath}`, config: {} })
             }
         );
 
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log("Ruleset response:", data);
     } catch (error) {
         console.error("Fetch error:", error);
     }
@@ -75,7 +85,21 @@ async function installRuleset(eci, filePath) {
 */
 async function installOwner(eci) {
     try {
-        installRuleset(eci, `file:///${__dirname}/Manifold-api/io.picolabs.manifold_owner.krl`);
+        const cwd = process.cwd();
+        const rootFolderName = "MCPforEXP";
+        const rootIndex = cwd.indexOf(rootFolderName); 
+        const rootPath = cwd.slice(0, rootIndex + rootFolderName.length);
+
+        // There seems to be some issue with the way "/" and "\" interact with the api request
+        // This should normalize them to all be the same and it should act as a path.
+        const rulesetPath = path.join(
+            rootPath,
+            "Manifold-api",
+            "io.picolabs.manifold_owner.krl"
+        );
+
+        const fileUrl = "file:///" + rulesetPath.split(path.sep).join("/");
+        await installRuleset(eci, fileUrl);
     } catch (error) {
         console.error(error);
     }
@@ -97,4 +121,4 @@ async function setSquareTag(eci, tagID, domain) {}
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-module.exports = { listThings, createThing, addNote, setSquareTag, listThingsByTag, getInitialECI };
+module.exports = { listThings, createThing, addNote, setSquareTag, listThingsByTag, getInitialECI, installOwner };

@@ -4,6 +4,8 @@
   "description": "This is a repository for the MCPforEXP project. The project aims to create a conversational interface for Manifold.",
   "main": "index.js",
   "scripts": {
+    "setup": "cd scripts && bash ./setup.sh",
+    "teardown": "cd scripts && bash ./teardown.sh",
     "test": "jest"
   },
   "repository": {
