@@ -1,4 +1,4 @@
-const { getInitialECI } = require('./api-wrapper');
+const { getInitialECI } = require('../../src/backend/api-wrapper');
 
 test('get initial ECI', async () => {
     try {
