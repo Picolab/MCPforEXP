@@ -1,10 +1,10 @@
 const path = require("path");
 
 /*
-    getInitialECI()
+    getRootECI()
     Returns the ECI of the UI pico as a javascript object--currently hardcoded to http://localhost:3000.
 */
-async function getInitialECI() {
+async function getRootECI() {
     try {
         const response = await fetch(`http://localhost:3000/api/ui-context`);
 
@@ -19,15 +19,36 @@ async function getInitialECI() {
     }
 }
 
+async function getInitializationECI(owner_eci) {
+    try {
+        const response = await fetch(`http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`);
+
+        if (!response.ok) {
+            throw new Error(`${response.status}`);
+        }
+
+        const data = await response.json();
+        const channels = data.channels;
+
+        for (let channel of channels) {
+            if (channel.tags.includes("initialization")) {
+                return channel.id;
+            }
+        }
+        throw new Error("Initialization ECI not found!");
+    } catch (error) {
+        console.error("Fetch error:", error);
+    }
+}
 
 /*
-    getManifoldECI(eci)
+    getManifoldECI(owner_eci)
     Given a valid ECI for a manifold_owner pico, scans its children and returns the child ECI of the manifold pico
 */
-async function getManifoldECI(eci) {
+async function getManifoldECI(owner_eci) {
     try {
         const response = await fetch(
-            `http://localhost:3000/c/${eci}/query/io.picolabs.wrangler/children`,
+            `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
             { method: "POST" }
         );
 
@@ -36,14 +57,8 @@ async function getManifoldECI(eci) {
         }
 
         const data = await response.json();
-        for (child in data) {
-            if (child.name == "Manifold") {
-                return child.eci;
-            }
-        }
-
-        // If there is no manifold child yet, manifold_owner hasn't been installed
-        throw new Error("manifold_owner not installed");
+        return data;
+        
     } catch (error) {
         console.error("Fetch error:", error);
     }
@@ -56,7 +71,7 @@ async function getManifoldECI(eci) {
     Note: filePath requires the same "file:///..." convention as the pico-engine UI
 */
 async function installRuleset(eci, filePath) {
-    console.log("Filepath: ", filePath);
+    // console.log("Filepath: ", filePath);
     try {
         // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
         const response = await fetch(
@@ -72,7 +87,7 @@ async function installRuleset(eci, filePath) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        console.log("Ruleset response:", data);
+        // console.log("Ruleset response:", data);
     } catch (error) {
         console.error("Fetch error:", error);
     }
@@ -105,6 +120,25 @@ async function installOwner(eci) {
     }
 }
 
+/*
+    initializeManifold()
+    Assumes a fresh pico-engine, but shouldn't break in the case you already have everything installed already.
+    Returns the ECI of the manifold pico as a string.
+*/
+async function initializeManifold() {
+    const rootECI = await getRootECI();
+    await installOwner(rootECI);
+    const initializationECI = await getInitializationECI(rootECI);
+    const manifoldECI = await getManifoldECI(initializationECI);
+    return manifoldECI;
+}
+
+async function main() {
+    const manifoldECI = await initializeManifold();
+    console.log(`Manifold ECI channel: ${manifoldECI}`);
+}
+
+main();
 
 // listThings(eci)
 async function listThings(eci) {}
@@ -121,4 +155,4 @@ async function setSquareTag(eci, tagID, domain) {}
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-module.exports = { listThings, createThing, addNote, setSquareTag, listThingsByTag, getInitialECI, installOwner };
+module.exports = { listThings, createThing, addNote, setSquareTag, listThingsByTag, installOwner };
