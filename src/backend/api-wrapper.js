@@ -1,69 +1,70 @@
 const path = require("path");
+const { pathToFileURL } = require("url");
 
 /*
     getRootECI()
     Returns the ECI of the UI pico as a javascript object--currently hardcoded to http://localhost:3000.
 */
 async function getRootECI() {
-    try {
-        const response = await fetch(`http://localhost:3000/api/ui-context`);
+  try {
+    const response = await fetch(`http://localhost:3000/api/ui-context`);
 
-        if (!response.ok) {
-            throw new Error(`${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.eci;
-    } catch (error) {
-        console.error("Fetch error:", error);
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
     }
+
+    const data = await response.json();
+    return data.eci;
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
 }
 
 async function getInitializationECI(owner_eci) {
-    try {
-        const response = await fetch(`http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`);
+  try {
+    const response = await fetch(
+      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
+    );
 
-        if (!response.ok) {
-            throw new Error(`${response.status}`);
-        }
-
-        const data = await response.json();
-        const channels = data.channels;
-
-        for (let channel of channels) {
-            if (channel.tags.includes("initialization")) {
-                return channel.id;
-            }
-        }
-        throw new Error("Initialization ECI not found!");
-    } catch (error) {
-        console.error("Fetch error:", error);
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
     }
+
+    const data = await response.json();
+    const channels = data.channels;
+
+    for (let channel of channels) {
+      if (channel.tags.includes("initialization")) {
+        return channel.id;
+      }
+    }
+    throw new Error("Initialization ECI not found!");
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
 }
 
 /*
     getManifoldECI(owner_eci)
-    Given a valid ECI for a manifold_owner pico, scans its children and returns the child ECI of the manifold pico
+    Given a valid (initialization) ECI for a manifold_owner pico, scans its children and returns the child ECI of the manifold pico
 */
 async function getManifoldECI(owner_eci) {
-    try {
-        const response = await fetch(
-            `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
-            { method: "POST" }
-        );
+  try {
+    const response = await fetch(
+      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
+      { method: "POST" },
+    );
 
-        if (!response.ok) {
-            throw new Error(`${response.status}`);
-        }
-
-        const data = await response.json();
-        return data;
-        
-    } catch (error) {
-        console.error("Fetch error:", error);
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
     }
-}
 
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
+}
 
 /*
     installRuleset(eci, filePath)
@@ -71,53 +72,54 @@ async function getManifoldECI(owner_eci) {
     Note: filePath requires the same "file:///..." convention as the pico-engine UI
 */
 async function installRuleset(eci, filePath) {
-    // console.log("Filepath: ", filePath);
-    try {
-        // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
-        const response = await fetch(
-            `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: ` ${filePath}`, config: {} })
-            }
-        );
+  console.log("Filepath: ", filePath);
+  try {
+    // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
+    const response = await fetch(
+      `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
+      },
+    );
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        // console.log("Ruleset response:", data);
-    } catch (error) {
-        console.error("Fetch error:", error);
+    console.log("Installation response: ", response);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+    const data = await response.json();
+    console.log("Ruleset response:", data);
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
 }
-
 
 /*
     installOwner(eci)
     Given a valid engine/UI ECI (and run from the root of the repo), automatically finds and installs the manifold_owner ruleset.
 */
 async function installOwner(eci) {
-    try {
-        const cwd = process.cwd();
-        const rootFolderName = "MCPforEXP";
-        const rootIndex = cwd.indexOf(rootFolderName); 
-        const rootPath = cwd.slice(0, rootIndex + rootFolderName.length);
+  try {
+    const cwd = process.cwd();
+    const rootFolderName = "MCPforEXP";
+    const rootIndex = cwd.indexOf(rootFolderName);
+    const rootPath = cwd.slice(0, rootIndex + rootFolderName.length);
 
-        // There seems to be some issue with the way "/" and "\" interact with the api request
-        // This should normalize them to all be the same and it should act as a path.
-        const rulesetPath = path.join(
-            rootPath,
-            "Manifold-api",
-            "io.picolabs.manifold_owner.krl"
-        );
+    // There seems to be some issue with the way "/" and "\" interact with the api request
+    // This should normalize them to all be the same and it should act as a path.
+    const rulesetPath = path.join(
+      rootPath,
+      "Manifold-api",
+      "io.picolabs.manifold_owner.krl",
+    );
 
-        const fileUrl = "file:///" + rulesetPath.split(path.sep).join("/");
-        await installRuleset(eci, fileUrl);
-    } catch (error) {
-        console.error(error);
-    }
+    const fileUrl = "file:///" + rulesetPath.split(path.sep).join("/");
+    await installRuleset(eci, fileUrl);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 /*
@@ -126,16 +128,16 @@ async function installOwner(eci) {
     Returns the ECI of the manifold pico as a string.
 */
 async function initializeManifold() {
-    const rootECI = await getRootECI();
-    await installOwner(rootECI);
-    const initializationECI = await getInitializationECI(rootECI);
-    const manifoldECI = await getManifoldECI(initializationECI);
-    return manifoldECI;
+  const rootECI = await getRootECI();
+  await installOwner(rootECI);
+  const initializationECI = await getInitializationECI(rootECI);
+  const manifoldECI = await getManifoldECI(initializationECI);
+  return manifoldECI;
 }
 
 async function main() {
-    const manifoldECI = await initializeManifold();
-    console.log(`Manifold ECI channel: ${manifoldECI}`);
+  const manifoldECI = await initializeManifold();
+  console.log(`Manifold ECI channel: ${manifoldECI}`);
 }
 
 main();
@@ -155,4 +157,97 @@ async function setSquareTag(eci, tagID, domain) {}
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-module.exports = { listThings, createThing, addNote, setSquareTag, listThingsByTag, installOwner };
+// addTags(eci, tag)
+async function addTags(eci, tag) {
+  try {
+    const rid = "io.picolabs.safeandmine";
+    const isSafeandMineInstalled = await childHasRuleset(eci, rid);
+
+    if (!isSafeandMineInstalled) {
+      console.log("Ruleset is not installed, beginning installation now.");
+
+      const absolutePath = path.join(
+        __dirname,
+        `../../Manifold-api/${rid}.krl`,
+      );
+      const rulesetUrl = pathToFileURL(absolutePath).href;
+
+      await installRuleset(eci, rulesetUrl);
+      console.log("Installed safeandmine ruleset");
+    }
+  } catch (err) {
+    console.error("Error in addTags:", err);
+  }
+}
+/**
+ * childHasRuleset(childEci, rid)
+ * Returns true if the given ruleset RID is installed on the child pico identified by `childEci`.
+ */
+async function childHasRuleset(childEci, rid) {
+  try {
+    const resp = await fetch(
+      `http://localhost:3000/c/${childEci}/query/io.picolabs.wrangler/installedRIDs`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+
+    console.log("Retrieving rulesets response: ", resp);
+
+    if (!resp.ok) return false;
+
+    const data = await resp.json();
+    console.log("Ruleset data: ", data);
+
+    if (Array.isArray(data)) {
+      console.log("It was an array");
+
+      for (const item of data) {
+        if (typeof item === "string" && item === rid) return true;
+        if (item && typeof item === "object") {
+          if (item.rid === rid || item.name === rid || item.id === rid)
+            return true;
+          if (JSON.stringify(item).indexOf(rid) !== -1) return true;
+        }
+      }
+      return false;
+    }
+
+    if (data && typeof data === "object") {
+      console.log("It was an object");
+      if (Object.prototype.hasOwnProperty.call(data, rid)) return true;
+      for (const v of Object.values(data)) {
+        if (v === rid) return true;
+        if (v && typeof v === "object") {
+          if (
+            v.rid === rid ||
+            v.name === rid ||
+            JSON.stringify(v).indexOf(rid) !== -1
+          )
+            return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (err) {
+    console.error("childHasRuleset error:", err);
+    return false;
+  }
+}
+
+module.exports = {
+  getRootECI,
+  getInitializationECI,
+  getManifoldECI,
+  listThings,
+  createThing,
+  addNote,
+  setSquareTag,
+  addTags,
+  listThingsByTag,
+  childHasRuleset,
+  installOwner,
+};
