@@ -144,7 +144,16 @@ main();
 async function listThings(eci) {}
 
 // createThing(eci, name)
-async function createThing(eci, name) {}
+async function createThing(eci, name) {
+    const response = await fetch(
+            `http://localhost:3000/sky/event/${eci}/createThing/manifold/create_thing`, 
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ options: {thing: `${name}` }, config: {} })
+            }
+        );
+}
 
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
