@@ -52,7 +52,10 @@ async function getManifoldECI(owner_eci) {
   try {
     const response = await fetch(
       `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
     );
 
     if (!response.ok) {
@@ -72,8 +75,11 @@ async function getManifoldECI(owner_eci) {
     Note: filePath requires the same "file:///..." convention as the pico-engine UI
 */
 async function installRuleset(eci, filePath) {
-  console.log("Filepath: ", filePath);
   try {
+    // Parses filePath to get ruleset id
+    const rid = filePath.split("/").at(-1).replace(".krl", "");
+    if (await picoHasRuleset(eci, rid)) return;
+
     // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
     const response = await fetch(
       `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
@@ -84,13 +90,10 @@ async function installRuleset(eci, filePath) {
       },
     );
 
-    console.log("Installation response: ", response);
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    console.log("Ruleset response:", data);
   } catch (error) {
     console.error("Fetch error:", error);
   }
@@ -142,8 +145,45 @@ async function main() {
 
 main();
 
-// listThings(eci)
-async function listThings(eci) {}
+/*
+  listThings(manifold_eci)
+  returns the manifold's things as the following JSON object:
+  {
+    "{picoID}": {
+      "Rx_role": manifold pico's subscription role,
+      "Tx_role": thing's subscription role,
+      "Id": ID of the manifold-thing subscription,
+      "Tx": manifold's subscription ECI,
+      "Rx": thing's subscription ECI,
+      "name": user-input name string,
+      "subID": ID of the manifold-thing subscription,
+      "picoID": thing's #system #self ECI,
+      "color": color in the pico-engine UI,
+      "picoId": thing's #system #self ECI
+    },
+    ...
+  }
+*/
+async function listThings(manifold_eci) {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
+}
 
 // createThing(eci, name)
 async function createThing(eci, name) {}
@@ -161,7 +201,7 @@ async function listThingsByTag(eci, tag) {}
 async function addTags(eci, tag) {
   try {
     const rid = "io.picolabs.safeandmine";
-    const isSafeandMineInstalled = await childHasRuleset(eci, rid);
+    const isSafeandMineInstalled = await picoHasRuleset(eci, rid);
 
     if (!isSafeandMineInstalled) {
       console.log("Ruleset is not installed, beginning installation now.");
@@ -180,60 +220,29 @@ async function addTags(eci, tag) {
   }
 }
 /**
- * childHasRuleset(childEci, rid)
- * Returns true if the given ruleset RID is installed on the child pico identified by `childEci`.
+ * picoHasRuleset(picoEci, rid)
+ * Returns true if the given ruleset RID is installed on the pico identified by `picoEci`.
  */
-async function childHasRuleset(childEci, rid) {
+async function picoHasRuleset(picoEci, rid) {
   try {
     const resp = await fetch(
-      `http://localhost:3000/c/${childEci}/query/io.picolabs.wrangler/installedRIDs`,
+      `http://localhost:3000/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`,
       {
-        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
       },
     );
-
-    console.log("Retrieving rulesets response: ", resp);
 
     if (!resp.ok) return false;
 
     const data = await resp.json();
-    console.log("Ruleset data: ", data);
 
-    if (Array.isArray(data)) {
-      console.log("It was an array");
-
-      for (const item of data) {
-        if (typeof item === "string" && item === rid) return true;
-        if (item && typeof item === "object") {
-          if (item.rid === rid || item.name === rid || item.id === rid)
-            return true;
-          if (JSON.stringify(item).indexOf(rid) !== -1) return true;
-        }
-      }
-      return false;
-    }
-
-    if (data && typeof data === "object") {
-      console.log("It was an object");
-      if (Object.prototype.hasOwnProperty.call(data, rid)) return true;
-      for (const v of Object.values(data)) {
-        if (v === rid) return true;
-        if (v && typeof v === "object") {
-          if (
-            v.rid === rid ||
-            v.name === rid ||
-            JSON.stringify(v).indexOf(rid) !== -1
-          )
-            return true;
-        }
-      }
+    for (const ruleset of data.rulesets) {
+      if (ruleset.rid === rid) return true;
     }
 
     return false;
   } catch (err) {
-    console.error("childHasRuleset error:", err);
+    console.error("picoHasRuleset error:", err);
     return false;
   }
 }
@@ -248,6 +257,6 @@ module.exports = {
   setSquareTag,
   addTags,
   listThingsByTag,
-  childHasRuleset,
+  picoHasRuleset,
   installOwner,
 };
