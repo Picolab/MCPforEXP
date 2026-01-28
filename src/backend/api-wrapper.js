@@ -52,7 +52,10 @@ async function getManifoldECI(owner_eci) {
   try {
     const response = await fetch(
       `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
     );
 
     if (!response.ok) {
@@ -142,8 +145,45 @@ async function main() {
 
 main();
 
-// listThings(eci)
-async function listThings(eci) {}
+/*
+  listThings(manifold_eci)
+  returns the manifold's things as the following JSON object:
+  {
+    "{picoID}": {
+      "Rx_role": manifold pico's subscription role,
+      "Tx_role": thing's subscription role,
+      "Id": ID of the manifold-thing subscription,
+      "Tx": manifold's subscription ECI,
+      "Rx": thing's subscription ECI,
+      "name": user-input name string,
+      "subID": ID of the manifold-thing subscription,
+      "picoID": thing's #system #self ECI,
+      "color": color in the pico-engine UI,
+      "picoId": thing's #system #self ECI
+    },
+    ...
+  }
+*/
+async function listThings(manifold_eci) {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
+}
 
 // createThing(eci, name)
 async function createThing(eci, name) {}
