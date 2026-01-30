@@ -327,16 +327,13 @@ async function listThings(manifold_eci) {
 async function createThing(manifoldEci, thingName) {
   console.log(`Creating Thing: "${thingName}"...`);
 
-  // Using event-wait ensures we don't proceed until the Pico is ready
-  const url = `http://localhost:3000/c/${manifoldEci}/event-wait/api-create/manifold/create_thing`;
+  const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: thingName,
-      }),
+      body: JSON.stringify({ name: thingName }),
     });
 
     if (!response.ok) {
@@ -346,17 +343,21 @@ async function createThing(manifoldEci, thingName) {
     }
 
     const data = await response.json();
+    console.log("Creation event accepted. Searching for new child Pico...");
 
-    // Manifold usually returns a directive with the new ECI
-    if (data.directives && data.directives[0]) {
-      const thingEci = data.directives[0].options.pico.eci;
-      console.log(`✅ Thing "${thingName}" created with ECI: ${thingEci}`);
-      return thingEci;
+    // Since the ECI isn't in the response, we poll for the child by name
+    // Try for 10 seconds to give the engine time to finish initialization
+    for (let i = 0; i < 10; i++) {
+      const thingEci = await getChildEciByName(manifoldEci, thingName);
+      if (thingEci) {
+        console.log(`✅ Thing "${thingName}" found! ECI: ${thingEci}`);
+        return thingEci;
+      }
+      process.stdout.write(".");
+      await new Promise((r) => setTimeout(r, 1000));
     }
 
-    // Fallback: If no directive, use our helper to find it by name
-    console.log("Directive empty, searching for child ECI by name...");
-    return await getChildEciByName(manifoldEci, thingName);
+    throw new Error(`Timed out waiting for Pico "${thingName}" to appear.`);
   } catch (error) {
     console.error(`Error in createThing:`, error.message);
     throw error;

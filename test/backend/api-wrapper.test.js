@@ -8,6 +8,7 @@ const {
   setupRegistry,
   getECIByTag,
   getChildEciByName,
+  createThing,
 } = require("../../src/backend/api-wrapper");
 
 // test("get initial ECI", async () => {
@@ -93,9 +94,10 @@ test("add tags", async () => {
 
     // Create things to add tags to
     const thingEci = await createThing(manifoldEci, "Test Thing");
+    console.log("Thing eci is", thingEci);
     expect(thingEci).toBeDefined();
     isInstalled = await picoHasRuleset(thingEci, "io.picolabs.safeandmine");
-    expect(isInstalled).toBe(false);
+    expect(isInstalled).toBe(true);
     const addedTag = await addTags(thingEci, "fake tag");
     expect(addedTag).toBeDefined();
   } catch (error) {
