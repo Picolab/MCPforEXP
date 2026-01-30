@@ -33,58 +33,21 @@ async function waitForECI(retries = 10, delayMs = 500) {
 
 async function main() {
   try {
-    // 1. Wait for the engine to actually wake up
     const eci = await waitForECI();
     console.log(`Using Pico ECI: ${eci}`);
 
-    // 2. Install the Bootstrap Orchestrator (Step 0)
-    // This triggers the KRL rules you wrote to start the chain reaction
-    await setupRegistry();
+    // This now blocks until the KRL bootstrap is 100% finished
+    const bootstrapResults = await setupRegistry();
+
+    // Since setupRegistry returns the status object, we can print it here
+    console.log("\n\n✅ MANIFOLD BOOTSTRAP SUCCESSFUL");
+    console.log("------------------------------------------");
+    console.log(`Registry ECI:      ${bootstrapResults.tag_registry_eci}`);
     console.log(
-      "Bootstrap ruleset installed. Monitoring engine for completion...",
+      `Registration ECI:  ${bootstrapResults.tag_registry_registration_eci}`,
     );
-
-    // 3. Poll the UI ruleset to see when the KRL finishes its work
-    // We check the 'ent' variables of our bootstrap ruleset
-    const maxAttempts = 30;
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        // Query the UI ruleset (which is always allowed for this ECI)
-        const resp = await fetch(
-          `http://127.0.0.1:3000/c/${eci}/query/io.picolabs.pico-engine-ui/pico`,
-        );
-
-        if (resp.ok) {
-          const picoState = await resp.json();
-
-          // Access the persistent variables (ent) stored by your bootstrap ruleset
-          const bootstrapVars =
-            picoState.ent?.["io.picolabs.manifold_bootstrap"];
-
-          if (bootstrapVars && bootstrapVars.owner_eci) {
-            console.log("\n\n✅ MANIFOLD BOOTSTRAP SUCCESSFUL");
-            console.log("------------------------------------------");
-            console.log(`Registry ECI:      ${bootstrapVars.tag_registry_eci}`);
-            console.log(
-              `Registration ECI:  ${bootstrapVars.tag_registry_registration_eci}`,
-            );
-            console.log(`Owner ECI:         ${bootstrapVars.owner_eci}`);
-            console.log("------------------------------------------");
-            return; // Success! Exit the script
-          }
-        }
-      } catch (err) {
-        // Suppress errors during polling (engine might be busy creating picos)
-      }
-
-      // Visual progress indicator
-      process.stdout.write(".");
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-
-    throw new Error(
-      "Bootstrap timed out. The KRL started, but never reached the final 'Owner' step.",
-    );
+    console.log(`Owner ECI:         ${bootstrapResults.owner_eci}`);
+    console.log("------------------------------------------");
   } catch (error) {
     console.error("\n❌ Setup failed:", error.message);
     process.exit(1);

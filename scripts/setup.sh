@@ -18,7 +18,7 @@ else
 fi
 
 # Start the pico engine as a background process
-pico-engine & # When the pico engine starts, the logging can just go to dev/null 
+pico-engine &> /dev/null & # When the pico engine starts, the logging can just go to dev/null 
 PICO_PID=$!
 echo "Pico server started with PID: $PICO_PID"
 
