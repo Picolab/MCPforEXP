@@ -2,8 +2,9 @@ const {
   getRootECI,
   getInitializationECI,
   getManifoldECI,
-  childHasRuleset,
+  picoHasRuleset,
   addTags,
+  listThings,
 } = require("../../src/backend/api-wrapper");
 
 test("get initial ECI", async () => {
@@ -56,13 +57,13 @@ test("has ruleset installed", async () => {
     const manifoldEci = await getManifoldECI(channelEci);
     console.log("Manifold eci is", manifoldEci);
     expect(manifoldEci).toBeDefined();
-    let isInstalled = await childHasRuleset(
+    let isInstalled = await picoHasRuleset(
       manifoldEci,
       "io.picolabs.manifold.safeandmine",
     );
     expect(isInstalled).toBe(false);
 
-    isInstalled = await childHasRuleset(
+    isInstalled = await picoHasRuleset(
       manifoldEci,
       "io.picolabs.manifold_pico",
     );
@@ -82,10 +83,28 @@ test("add tags", async () => {
     expect(channelEci).toBeDefined();
     const manifoldEci = await getManifoldECI(channelEci);
     console.log("Manifold eci is", manifoldEci);
-    isInstalled = await childHasRuleset(manifoldEci, "io.picolabs.safeandmine");
+    isInstalled = await picoHasRuleset(manifoldEci, "io.picolabs.safeandmine");
     expect(isInstalled).toBe(false);
     const addedTag = await addTags(manifoldEci, "fake tag");
     expect(addedTag).toBeDefined();
+  } catch (error) {
+    throw error;
+  }
+});
+
+test("list things", async () => {
+  try {
+    const eci = await getRootECI();
+    expect(eci).toBeDefined();
+    console.log("Root eci is", eci);
+    const channelEci = await getInitializationECI(eci);
+    console.log("Channel eci is", channelEci);
+    expect(channelEci).toBeDefined();
+    const manifoldEci = await getManifoldECI(channelEci);
+    console.log("Manifold eci is", manifoldEci);
+    // Once createThing is implemented, we can enhance this test.
+    result = await listThings(manifoldEci);
+    expect(result).toEqual({});
   } catch (error) {
     throw error;
   }
