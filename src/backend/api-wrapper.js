@@ -112,6 +112,66 @@ async function getInitializationECI(owner_eci) {
   }
 }
 
+/**
+ * getChildEciByName(parentEci, childName)
+ * Queries a parent Pico to find the ECI of a child Pico with a specific name.
+ * Uses the engine-ui/pico query for authorized access.
+ */
+async function getChildEciByName(parentEci, childName) {
+  try {
+    const url = `http://127.0.0.1:3000/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to query parent Pico: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data && Array.isArray(data.children)) {
+      const foundChild = data.children.find(
+        (child) => child.name === childName,
+      );
+
+      if (foundChild && foundChild.eci) {
+        return foundChild.eci;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      `Error in getChildEciByName for "${childName}":`,
+      error.message,
+    );
+    throw error;
+  }
+}
+
+async function getECIByTag(owner_eci, tag) {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
+    }
+
+    const data = await response.json();
+    const channels = data.channels;
+
+    for (let channel of channels) {
+      if (channel.tags.includes(tag)) {
+        return channel.id;
+      }
+    }
+    throw new Error(`Child ECI with tag "${tag}" not found!`);
+  } catch (error) {
+    console.error("Fetch error:", error);
+  }
+}
+
 /*
     getManifoldECI(owner_eci)
     Given a valid (initialization) ECI for a manifold_owner pico, scans its children and returns the child ECI of the manifold pico
@@ -253,8 +313,48 @@ async function listThings(manifold_eci) {
   }
 }
 
-// createThing(eci, name)
-async function createThing(eci, name) {}
+/**
+ * createThing(manifoldEci, thingName)
+ * Triggers the creation of a new Thing and waits for the engine to finish.
+ */
+async function createThing(manifoldEci, thingName) {
+  console.log(`Creating Thing: "${thingName}"...`);
+
+  // Using event-wait ensures we don't proceed until the Pico is ready
+  const url = `http://localhost:3000/c/${manifoldEci}/event-wait/api-create/manifold/create_thing`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: thingName,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP Error (${response.status}): ${await response.text()}`,
+      );
+    }
+
+    const data = await response.json();
+
+    // Manifold usually returns a directive with the new ECI
+    if (data.directives && data.directives[0]) {
+      const thingEci = data.directives[0].options.pico.eci;
+      console.log(`✅ Thing "${thingName}" created with ECI: ${thingEci}`);
+      return thingEci;
+    }
+
+    // Fallback: If no directive, use our helper to find it by name
+    console.log("Directive empty, searching for child ECI by name...");
+    return await getChildEciByName(manifoldEci, thingName);
+  } catch (error) {
+    console.error(`Error in createThing:`, error.message);
+    throw error;
+  }
+}
 
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
@@ -265,8 +365,8 @@ async function setSquareTag(eci, tagID, domain) {}
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-// addTags(eci, tag)
-async function addTags(eci, tag) {
+// addTags(eci, tagId, domain = "sqtg")
+async function addTags(eci, tagId, domain = "sqtg") {
   try {
     const rid = "io.picolabs.safeandmine";
     const isSafeandMineInstalled = await picoHasRuleset(eci, rid);
@@ -282,9 +382,22 @@ async function addTags(eci, tag) {
 
       await installRuleset(eci, rulesetUrl);
       console.log("Installed safeandmine ruleset");
+      await new Promise((r) => setTimeout(r, 500));
+
+      const response = await fetch(
+        `http://127.0.0.1:3000/c/${thingEci}/event/safeandmine/new_tag`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tagID: tagId, domain: domain }),
+        },
+      );
+
+      return await response.json();
     }
   } catch (err) {
     console.error("Error in addTags:", err);
+    throw err;
   }
 }
 /**
@@ -328,4 +441,6 @@ module.exports = {
   picoHasRuleset,
   installOwner,
   setupRegistry,
+  getECIByTag,
+  getChildEciByName,
 };
