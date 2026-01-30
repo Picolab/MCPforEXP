@@ -121,24 +121,31 @@ async function getChildEciByName(parentEci, childName) {
   try {
     const url = `http://127.0.0.1:3000/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
     const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Failed to query parent Pico: ${response.status}`);
-    }
+    if (!response.ok)
+      throw new Error(`Failed to query parent: ${response.status}`);
 
     const data = await response.json();
+    const childEcis = data.children || [];
 
-    if (data && Array.isArray(data.children)) {
-      const foundChild = data.children.find(
-        (child) => child.name === childName,
-      );
+    // We must query each child individually to find the one with the matching name
+    for (const childEci of childEcis) {
+      try {
+        const nameUrl = `http://127.0.0.1:3000/c/${childEci}/query/io.picolabs.pico-engine-ui/name`;
+        const nameResp = await fetch(nameUrl);
 
-      if (foundChild && foundChild.eci) {
-        return foundChild.eci;
+        if (nameResp.ok) {
+          const actualName = await nameResp.json();
+          if (actualName === childName) {
+            return childEci; // Match found!
+          }
+        }
+      } catch (err) {
+        // Skip a specific child if it's currently unreachable/initializing
+        continue;
       }
     }
 
-    return null;
+    return null; // No match found after checking all children
   } catch (error) {
     console.error(
       `Error in getChildEciByName for "${childName}":`,
@@ -271,7 +278,7 @@ async function main() {
   console.log(`Manifold ECI channel: ${manifoldECI}`);
 }
 
-main();
+// main();
 
 /*
   listThings(manifold_eci)
@@ -369,32 +376,28 @@ async function listThingsByTag(eci, tag) {}
 async function addTags(eci, tagId, domain = "sqtg") {
   try {
     const rid = "io.picolabs.safeandmine";
-    const isSafeandMineInstalled = await picoHasRuleset(eci, rid);
+    const isInstalled = await picoHasRuleset(eci, rid);
 
-    if (!isSafeandMineInstalled) {
-      console.log("Ruleset is not installed, beginning installation now.");
-
+    if (!isInstalled) {
+      console.log("Installing safeandmine...");
       const absolutePath = path.join(
         __dirname,
         `../../Manifold-api/${rid}.krl`,
       );
-      const rulesetUrl = pathToFileURL(absolutePath).href;
-
-      await installRuleset(eci, rulesetUrl);
-      console.log("Installed safeandmine ruleset");
-      await new Promise((r) => setTimeout(r, 500));
-
-      const response = await fetch(
-        `http://127.0.0.1:3000/c/${thingEci}/event/safeandmine/new_tag`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tagID: tagId, domain: domain }),
-        },
-      );
-
-      return await response.json();
+      await installRuleset(eci, pathToFileURL(absolutePath).href);
+      await new Promise((r) => setTimeout(r, 1000)); // Give KRL time to init
     }
+
+    const response = await fetch(
+      `http://127.0.0.1:3000/c/${eci}/event/safeandmine/new_tag`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagID: tagId, domain: domain }),
+      },
+    );
+
+    return await response.json();
   } catch (err) {
     console.error("Error in addTags:", err);
     throw err;
