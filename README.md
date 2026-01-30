@@ -67,3 +67,102 @@ Or equivalently:
 ```bash
 npm run test
 ```
+
+## Uniform JSON for MCP ↔ KRL (events + queries)
+
+This repo includes a small adapter that normalizes **all** pico-engine calls (KRL queries + events) into a single JSON envelope.
+
+### Request envelope
+
+Use this shape for every operation:
+
+```json
+{
+  "id": "optional-correlation-id",
+  "target": { "eci": "ECI_HERE" },
+  "op": {
+    "kind": "query",
+    "rid": "io.picolabs.manifold_pico",
+    "name": "getThings"
+  },
+  "args": {}
+}
+```
+
+- **Queries** use `op.kind="query"` with `op.rid` + `op.name`
+- **Events** use `op.kind="event"` with `op.domain` + `op.type`
+- **Args** are always an object (query args or event attrs)
+
+### Response envelope
+
+Success:
+
+```json
+{
+  "id": "optional-correlation-id",
+  "ok": true,
+  "data": {},
+  "meta": { "kind": "query", "eci": "ECI_HERE", "rid": "io.picolabs.manifold_pico", "name": "getThings", "httpStatus": 200 }
+}
+```
+
+Error:
+
+```json
+{
+  "id": "optional-correlation-id",
+  "ok": false,
+  "error": { "code": "HTTP_ERROR", "message": "Upstream returned HTTP 500", "details": {} },
+  "meta": { "kind": "query", "eci": "ECI_HERE", "rid": "io.picolabs.manifold_pico", "name": "getThings", "httpStatus": 500 }
+}
+```
+
+### Implemented operations (MCP-friendly)
+
+These helpers live in `src/backend/api-wrapper.js` and all return the envelope above:
+
+- **Manifold pico**
+  - Query: `manifold_getThings(eci)`
+  - Query: `manifold_isAChild(eci, picoID)`
+  - Event: `manifold_create_thing(eci, name)`
+  - Event: `manifold_remove_thing(eci, picoID)` (note: KRL expects `picoID`)
+  - Event: `manifold_change_thing_name(eci, picoID, changedName)` (note: KRL expects `changedName`)
+- **Thing pico (safeandmine ruleset)**
+  - Query: `safeandmine_getInformation(eci, info?)`
+  - Query: `safeandmine_getTags(eci)`
+  - Event: `safeandmine_update(eci, { name,email,phone,message, shareName,shareEmail,sharePhone })`
+  - Event: `safeandmine_delete(eci, toDelete?)`
+  - Event: `safeandmine_newtag(eci, tagID, domain)` (maps to KRL event `safeandmine new_tag`)
+
+## MCP server (next step)
+
+### What MCP “tool schema” means
+
+In MCP, a **tool** is described by:
+
+- **name**: string identifier (e.g. `manifold_getThings`)
+- **description**: short human/LLM guidance
+- **inputSchema**: **JSON Schema** describing the tool’s `arguments`
+
+The MCP client sends: `{ name: "toolName", arguments: { ... } }`
+
+### This repo’s MCP server scaffolding
+
+- **Tool schemas**: `src/mcp/tools.js`
+- **Server (stdio)**: `src/mcp/server.js` (registers tools and returns the uniform envelope as JSON text)
+
+### Install + run
+
+Install dependencies (needs network):
+
+```bash
+npm install
+```
+
+Run the MCP server:
+
+```bash
+npm run mcp:server
+```
+
+Once this is running, an MCP client (like a desktop app / agent runner) can connect over stdio and call tools like `manifold_getThings` with `{ "eci": "..." }`.

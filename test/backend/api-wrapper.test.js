@@ -1,10 +1,4 @@
-const {
-  getRootECI,
-  getInitializationECI,
-  getManifoldECI,
-  childHasRuleset,
-  addTags,
-} = require("../../src/backend/api-wrapper");
+const { manifold_getThings, manifold_isAChild, safeandmine_update } = require("../../src/backend/api-wrapper");
 
 test("get initial ECI", async () => {
   try {
