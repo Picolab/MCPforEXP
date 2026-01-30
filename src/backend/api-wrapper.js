@@ -20,6 +20,18 @@ async function getRootECI() {
   }
 }
 
+async function setupRegistry() {
+  const rootEci = await getRootECI();
+  const filePath = path.resolve(
+    __dirname,
+    "../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
+  );
+  const fileUrl = pathToFileURL(filePath).href;
+
+  // Use the standard installRuleset logic
+  await installRuleset(rootEci, fileUrl);
+}
+
 async function getInitializationECI(owner_eci) {
   try {
     const response = await fetch(
@@ -259,4 +271,5 @@ module.exports = {
   listThingsByTag,
   picoHasRuleset,
   installOwner,
+  setupRegistry,
 };
