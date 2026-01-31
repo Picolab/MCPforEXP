@@ -398,7 +398,10 @@ async function addTags(eci, tagId, domain = "sqtg") {
       },
     );
 
-    return await response.json();
+    const data = await response.json();
+    console.log("Data is", data);
+
+    return data;
   } catch (err) {
     console.error("Error in addTags:", err);
     throw err;

@@ -98,7 +98,11 @@ test("add tags", async () => {
     expect(thingEci).toBeDefined();
     isInstalled = await picoHasRuleset(thingEci, "io.picolabs.safeandmine");
     expect(isInstalled).toBe(true);
-    const addedTag = await addTags(thingEci, "fake tag");
+    // Need to find the things manifold ECI to add tags
+    const thingManifoldEci = await getECIByTag(thingEci, "manifold");
+    console.log("Thing manifold eci is", thingManifoldEci);
+    expect(thingManifoldEci).toBeDefined();
+    const addedTag = await addTags(thingManifoldEci, "fake tag");
     expect(addedTag).toBeDefined();
   } catch (error) {
     throw error;
