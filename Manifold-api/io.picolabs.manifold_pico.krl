@@ -2,8 +2,8 @@ ruleset io.picolabs.manifold_pico {
   meta {
     use module io.picolabs.wrangler alias wrangler
     use module io.picolabs.subscription alias subscription
-    shares __testing, getManifoldInfo, isAChild, getThings
-    provides __testing, getManifoldInfo, getThings
+    shares getManifoldInfo, isAChild, getThings, getTagServer
+    provides getManifoldInfo, getThings
   }//end meta
 
   global {
@@ -69,9 +69,9 @@ ruleset io.picolabs.manifold_pico {
     }
 
     isAChild = function(picoID) {
-      children = wrangler:children();
+      children = wrangler:children() // .klog("Children in isAChild()");
       childIDs = children.map(function(child) {
-        child{"id"}
+        child{"eci"}
       });
       childIDs >< picoID
     }
@@ -82,6 +82,12 @@ ruleset io.picolabs.manifold_pico {
 
     isACommunity = function(picoID) {
       ent:communities.defaultsTo({}).keys() >< picoID
+    }
+
+    getTagServer = function() {
+      parent = wrangler:parent_eci().klog("parent") // ask mom
+      tag_pico = wrangler:picoQuery(parent, "io.picolabs.manifold_owner", "getTagServer")
+      tag_pico
     }
 
     initializationRids = ["io.picolabs.notifications",
@@ -133,7 +139,7 @@ ruleset io.picolabs.manifold_pico {
       wellKnown = subscription:wellKnown_Rx(){"id"};
       role_type = thing_role;
       children = wrangler:children();
-      picoID = ctx:query(eci,"io.picolabs.wrangler","myself"){"id"}.klog("PicoID"); // may be better ways to do this
+      picoID = eci // ctx:query(eci,"io.picolabs.wrangler","myself"){"id"}.klog("PicoID"); // may be better ways to do this
     }
     // initiate_subscription(event:attr("eci"), event:attr("name"), subscription:wellKnown_Rx(){"id"}, thing_role);
     event:send({
@@ -248,8 +254,8 @@ ruleset io.picolabs.manifold_pico {
       send_directive("Attempting to remove Thing", { "thing": ent:things{[picoID, "name"]}, "picoID": picoID })
     fired {
       ent:things := ent:things.filter(function(thing, key){ key != picoID});
-      raise wrangler event "child_deletion"
-        attributes { "id": picoID } //lowercase "id" is wrangler's way to delete a child by picoID
+      raise wrangler event "child_deletion_request"
+        attributes { "eci": picoID } 
     }
   }
 
@@ -363,6 +369,18 @@ ruleset io.picolabs.manifold_pico {
             "absoluteURL": absoluteURL
           }
       }
+  }
+
+   rule set_tag_server {
+    select when wrangler ruleset_installed where event:attr("rids") >< ctx:rid
+    pre {
+      parent = wrangler:channels("system,child").head(){"id"}.klog("parent")
+      tag_pico = wrangler:picoQuery(parent, "io.picolabs.manifold_owner", "getTagServer")
+    }
+    noop();
+    always {
+      ent:tag_pico := tag_pico
+    }
   }
   
   rule createAppChannel {
