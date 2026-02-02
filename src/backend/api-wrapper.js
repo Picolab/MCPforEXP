@@ -146,6 +146,7 @@ async function getChildEciByName(parentEci, childName) {
       }
     }
 
+    console.log("Returning null from getChildEciByName");
     return null; // No match found after checking all children
   } catch (error) {
     console.error(
@@ -266,7 +267,11 @@ async function safeandmine_getInformation(eci, info, id) {
   return callKrl({
     id,
     target: { eci },
-    op: { kind: "query", rid: "io.picolabs.safeandmine", name: "getInformation" },
+    op: {
+      kind: "query",
+      rid: "io.picolabs.safeandmine",
+      name: "getInformation",
+    },
     args,
   });
 }
@@ -490,14 +495,14 @@ async function createThing(manifoldEci, thingName) {
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
 
-// setSquareTag(eci, tagID, domain)
-async function setSquareTag(eci, tagID, domain) {}
+// addTag(eci, tagID, domain)
+async function addTag(eci, tagID, domain) {}
 
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-// addTags(eci, tagId, domain = "sqtg")
-async function addTags(eci, tagId, domain = "sqtg") {
+// setSquareTag(eci, tagId, domain = "sqtg")
+async function setSquareTag(eci, tagId, domain = "sqtg") {
   try {
     const rid = "io.picolabs.safeandmine";
     const isInstalled = await picoHasRuleset(eci, rid);
@@ -526,7 +531,7 @@ async function addTags(eci, tagId, domain = "sqtg") {
 
     return data;
   } catch (err) {
-    console.error("Error in addTags:", err);
+    console.error("Error in setSquareTag:", err);
     throw err;
   }
 }
@@ -576,8 +581,8 @@ module.exports = {
   listThings,
   createThing,
   addNote,
+  addTag,
   setSquareTag,
-  addTags,
   listThingsByTag,
   picoHasRuleset,
   installOwner,
