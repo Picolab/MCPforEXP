@@ -7,7 +7,8 @@
     "setup": "cd scripts && bash ./setup.sh",
     "teardown": "cd scripts && bash ./teardown.sh",
     "test": "jest",
-    "mcp:server": "node src/mcp/server.js"
+    "mcp:server": "node src/mcp/server.js",
+    "test:mcp": "node scripts/test-mcp-manual.js"
   },
   "repository": {
     "type": "git",
