@@ -385,22 +385,12 @@ async function installOwner(eci) {
   }
 }
 
-/*
-    initializeManifold()
-    Assumes a fresh pico-engine, but shouldn't break in the case you already have everything installed already.
-    Returns the ECI of the manifold pico as a string.
-*/
-async function initializeManifold() {
-  const rootECI = await getRootECI();
-  await installOwner(rootECI);
-  const initializationECI = await getInitializationECI(rootECI);
-  const manifoldECI = await getManifoldECI(initializationECI);
-  return manifoldECI;
-}
-
 async function main() {
-  const manifoldECI = await initializeManifold();
-  console.log(`Manifold ECI channel: ${manifoldECI}`);
+  const rootECI = await getRootECI();
+  const ownerECI = await getChildEciByName(rootECI, "Owner");
+  const ownerInitializationECI = await getInitializationECI(ownerECI);
+  const manifoldECI = await getManifoldECI(ownerInitializationECI);
+  console.log(manifoldECI);
 }
 
 if (require.main === module) {
@@ -442,6 +432,7 @@ async function listThings(manifold_eci) {
     }
 
     const data = await response.json();
+    console.log(data);
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
@@ -564,20 +555,10 @@ async function picoHasRuleset(picoEci, rid) {
 }
 
 module.exports = {
+  main,
   getRootECI,
   getInitializationECI,
   getManifoldECI,
-  // Uniform MCP-friendly ops
-  manifold_getThings,
-  manifold_isAChild,
-  manifold_create_thing,
-  manifold_remove_thing,
-  manifold_change_thing_name,
-  safeandmine_getInformation,
-  safeandmine_getTags,
-  safeandmine_update,
-  safeandmine_delete,
-  safeandmine_newtag,
   listThings,
   createThing,
   addNote,
@@ -589,4 +570,15 @@ module.exports = {
   setupRegistry,
   getECIByTag,
   getChildEciByName,
+  // Uniform MCP-friendly ops
+  manifold_getThings,
+  manifold_isAChild,
+  manifold_create_thing,
+  manifold_remove_thing,
+  manifold_change_thing_name,
+  safeandmine_getInformation,
+  safeandmine_getTags,
+  safeandmine_update,
+  safeandmine_delete,
+  safeandmine_newtag,
 };
