@@ -124,6 +124,16 @@ async function main() {
 
   // Additional utility tools from api-wrapper
   server.tool(
+    "getRootECI",
+    "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
+    z.object({}),
+    toolHandler(async () => {
+      const eci = await api.getRootECI();
+      return { rootEci: eci };
+    }),
+  );
+
+  server.tool(
     "addTags",
     "Installs safeandmine ruleset on a thing pico if not already installed",
     z.object(base),
