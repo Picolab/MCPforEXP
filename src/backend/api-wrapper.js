@@ -1,5 +1,13 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
+const {
+  getRootECI,
+  getInitializationECI,
+  getManifoldECI,
+  picoHasRuleset,
+  getECIByTag,
+  getChildEciByName,
+} = require("./utility.js");
 
 async function main() {
   const rootECI = await getRootECI();

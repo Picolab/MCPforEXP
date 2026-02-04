@@ -1,16 +1,17 @@
 const {
+  addTag,
+  setSquareTag,
+  listThings,
+  createThing,
+} = require("../../src/backend/api-wrapper");
+const {
   getRootECI,
   getInitializationECI,
   getManifoldECI,
   picoHasRuleset,
-  addTag,
-  setSquareTag,
-  listThings,
-  setupRegistry,
   getECIByTag,
   getChildEciByName,
-  createThing,
-} = require("../../src/backend/api-wrapper");
+} = require("../../src/backend/utility");
 
 // test("get initial ECI", async () => {
 //   try {
