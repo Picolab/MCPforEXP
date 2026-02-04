@@ -1,10 +1,13 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
 
-/*
-    getRootECI()
-    Returns the ECI of the UI pico as a javascript object--currently hardcoded to http://localhost:3000.
-*/
+/**
+ * Fetches the root ECI of the UI pico from the engine's local context.
+ * * @async
+ * @function getRootECI
+ * @returns {Promise<string|undefined>} The ECI string for the root UI pico, or undefined if the fetch fails.
+ * @throws {Error} If the response status is not OK.
+ */
 async function getRootECI() {
   try {
     const response = await fetch(`http://localhost:3000/api/ui-context`);
@@ -20,6 +23,20 @@ async function getRootECI() {
   }
 }
 
+/**
+ * Orchestrates the full bootstrap sequence for the Manifold platform.
+ * Installs the bootstrap ruleset on the root pico and polls for the creation of the
+ * Tag Registry and Owner picos.
+ * * @async
+ * @function setupRegistry
+ * @returns {Promise<Object>} An object containing the final bootstrap status:
+ * {
+ * tag_registry_eci,
+ * tag_registry_registration_eci,
+ * owner_eci
+ * }
+ * @throws {Error} If the bootstrap process fails to complete within 30 seconds.
+ */
 async function setupRegistry() {
   const rootEci = await getRootECI();
   const filePath = path.resolve(
@@ -39,7 +56,6 @@ async function setupRegistry() {
   console.log("Waiting for bootstrap to complete (this may take up to 30s):");
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      // Search for the authorized "bootstrap" channel
       if (!bootstrapEci) {
         const picoResp = await fetch(
           `http://127.0.0.1:3000/c/${rootEci}/query/io.picolabs.pico-engine-ui/pico`,
@@ -62,7 +78,6 @@ async function setupRegistry() {
         }
       }
 
-      // If we found the channel, check if the full process is done
       if (bootstrapEci) {
         const resp = await fetch(
           `http://127.0.0.1:3000/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`,
@@ -88,6 +103,14 @@ async function setupRegistry() {
   );
 }
 
+/**
+ * Searches the channels of a specific pico for one containing the "initialization" tag.
+ * * @async
+ * @function getInitializationECI
+ * @param {string} owner_eci - The ECI of the pico to search.
+ * @returns {Promise<string|undefined>} The ECI of the initialization channel.
+ * @throws {Error} If the channel is not found or the response is invalid.
+ */
 async function getInitializationECI(owner_eci) {
   try {
     const response = await fetch(
@@ -113,9 +136,13 @@ async function getInitializationECI(owner_eci) {
 }
 
 /**
- * getChildEciByName(parentEci, childName)
- * Queries a parent Pico to find the ECI of a child Pico with a specific name.
- * Uses the engine-ui/pico query for authorized access.
+ * Performs a deep search for a child pico by its display name.
+ * * @async
+ * @function getChildEciByName
+ * @param {string} parentEci - The ECI of the parent pico.
+ * @param {string} childName - The name string to match.
+ * @returns {Promise<string|null>} The primary ECI of the child if found, otherwise null.
+ * @throws {Error} If the parent pico cannot be queried.
  */
 async function getChildEciByName(parentEci, childName) {
   try {
@@ -156,6 +183,15 @@ async function getChildEciByName(parentEci, childName) {
   }
 }
 
+/**
+ * Finds an ECI on a pico by searching for a specific channel tag.
+ * * @async
+ * @function getECIByTag
+ * @param {string} owner_eci - The ECI of the pico to search.
+ * @param {string} tag - The tag string to find (e.g., "manifold").
+ * @returns {Promise<string|undefined>} The ID of the matching channel.
+ * @throws {Error} If no channel with that tag exists.
+ */
 async function getECIByTag(owner_eci, tag) {
   try {
     const response = await fetch(
@@ -180,10 +216,13 @@ async function getECIByTag(owner_eci, tag) {
   }
 }
 
-/*
-    getManifoldECI(owner_eci)
-    Given a valid (initialization) ECI for a manifold_owner pico, scans its children and returns the child ECI of the manifold pico
-*/
+/**
+ * Queries a manifold_owner pico to retrieve the ECI of its manifold child pico.
+ * * @async
+ * @function getManifoldECI
+ * @param {string} owner_eci - A valid ECI for a manifold_owner pico.
+ * @returns {Promise<string|undefined>} The ECI of the manifold child pico.
+ */
 async function getManifoldECI(owner_eci) {
   try {
     const response = await fetch(
@@ -205,18 +244,20 @@ async function getManifoldECI(owner_eci) {
   }
 }
 
-/*
-    installRuleset(eci, filePath)
-    Given a valid engine/UI ECI and KRL filepath, installs the KRL ruleset.
-    Note: filePath requires the same "file:///..." convention as the pico-engine UI
-*/
+/**
+ * Installs a KRL ruleset on a pico using its file URL.
+ * * @async
+ * @function installRuleset
+ * @param {string} eci - The ECI of the pico where the ruleset should be installed.
+ * @param {string} filePath - The absolute file URL (e.g., "file:///C:/...").
+ * @returns {Promise<void>}
+ * @throws {Error} If the installation event fails.
+ */
 async function installRuleset(eci, filePath) {
   try {
-    // Parses filePath to get ruleset id
     const rid = filePath.split("/").at(-1).replace(".krl", "");
     if (await picoHasRuleset(eci, rid)) return;
 
-    // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
     const response = await fetch(
       `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
       {
@@ -235,10 +276,14 @@ async function installRuleset(eci, filePath) {
   }
 }
 
-/*
-    installOwner(eci)
-    Given a valid engine/UI ECI (and run from the root of the repo), automatically finds and installs the manifold_owner ruleset.
-*/
+/**
+ * Specifically installs the manifold_owner ruleset onto a pico.
+ * Automatically resolves the local file path based on the project structure.
+ * * @async
+ * @function installOwner
+ * @param {string} eci - The ECI of the target pico.
+ * @returns {Promise<void>}
+ */
 async function installOwner(eci) {
   try {
     const cwd = process.cwd();
@@ -246,8 +291,6 @@ async function installOwner(eci) {
     const rootIndex = cwd.indexOf(rootFolderName);
     const rootPath = cwd.slice(0, rootIndex + rootFolderName.length);
 
-    // There seems to be some issue with the way "/" and "\" interact with the api request
-    // This should normalize them to all be the same and it should act as a path.
     const rulesetPath = path.join(
       rootPath,
       "Manifold-api",
@@ -262,8 +305,12 @@ async function installOwner(eci) {
 }
 
 /**
- * picoHasRuleset(picoEci, rid)
- * Returns true if the given ruleset RID is installed on the pico identified by `picoEci`.
+ * Checks if a specific ruleset is already installed on a pico.
+ * * @async
+ * @function picoHasRuleset
+ * @param {string} picoEci - The ECI of the pico to inspect.
+ * @param {string} rid - The Ruleset ID to look for.
+ * @returns {Promise<boolean>} True if the RID is found in the rulesets list, false otherwise.
  */
 async function picoHasRuleset(picoEci, rid) {
   try {
