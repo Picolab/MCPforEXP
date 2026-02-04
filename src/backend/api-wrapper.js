@@ -146,6 +146,7 @@ async function getChildEciByName(parentEci, childName) {
       }
     }
 
+    console.log("Returning null from getChildEciByName");
     return null; // No match found after checking all children
   } catch (error) {
     console.error(
@@ -443,7 +444,7 @@ async function listThings(manifold_eci) {
  * Triggers the creation of a new Thing and waits for the engine to finish.
  */
 async function createThing(manifoldEci, thingName) {
-  console.log(`Creating Thing: "${thingName}"...`);
+  // console.log(`Creating Thing: "${thingName}"...`);
 
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
@@ -461,14 +462,15 @@ async function createThing(manifoldEci, thingName) {
     }
 
     const data = await response.json();
-    console.log("Creation event accepted. Searching for new child Pico...");
+    // console.log("Creation event accepted. Searching for new child Pico...");
 
     // Since the ECI isn't in the response, we poll for the child by name
     // Try for 10 seconds to give the engine time to finish initialization
     for (let i = 0; i < 10; i++) {
       const thingEci = await getChildEciByName(manifoldEci, thingName);
       if (thingEci) {
-        console.log(`✅ Thing "${thingName}" found! ECI: ${thingEci}`);
+        //console.log(`✅ Thing "${thingName}" found! ECI: ${thingEci}`);
+        console.log(thingEci);
         return thingEci;
       }
       process.stdout.write(".");
@@ -485,14 +487,14 @@ async function createThing(manifoldEci, thingName) {
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
 
-// setSquareTag(eci, tagID, domain)
-async function setSquareTag(eci, tagID, domain) {}
+// addTag(eci, tagID, domain)
+async function addTag(eci, tagID, domain) {}
 
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-// addTags(eci, tagId, domain = "sqtg")
-async function addTags(eci, tagId, domain = "sqtg") {
+// setSquareTag(eci, tagId, domain = "sqtg")
+async function setSquareTag(eci, tagId, domain = "sqtg") {
   try {
     const rid = "io.picolabs.safeandmine";
     const isInstalled = await picoHasRuleset(eci, rid);
@@ -507,8 +509,10 @@ async function addTags(eci, tagId, domain = "sqtg") {
       await new Promise((r) => setTimeout(r, 1000)); // Give KRL time to init
     }
 
+    const manifoldECI = await getECIByTag(eci, "manifold");
+
     const response = await fetch(
-      `http://127.0.0.1:3000/c/${eci}/event/safeandmine/new_tag`,
+      `http://127.0.0.1:3000/c/${manifoldECI}/event/safeandmine/new_tag`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -517,11 +521,11 @@ async function addTags(eci, tagId, domain = "sqtg") {
     );
 
     const data = await response.json();
-    console.log("Data is", data);
+    console.log("Done! Event id: ", data);
 
     return data;
   } catch (err) {
-    console.error("Error in addTags:", err);
+    console.error("Error in setSquareTag:", err);
     throw err;
   }
 }
@@ -561,8 +565,8 @@ module.exports = {
   listThings,
   createThing,
   addNote,
+  addTag,
   setSquareTag,
-  addTags,
   listThingsByTag,
   picoHasRuleset,
   installOwner,
