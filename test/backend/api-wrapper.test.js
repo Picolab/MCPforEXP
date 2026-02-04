@@ -3,7 +3,8 @@ const {
   getInitializationECI,
   getManifoldECI,
   picoHasRuleset,
-  addTags,
+  addTag,
+  setSquareTag,
   listThings,
   setupRegistry,
   getECIByTag,
@@ -102,7 +103,7 @@ test("add tags", async () => {
     const thingManifoldEci = await getECIByTag(thingEci, "manifold");
     console.log("Thing manifold eci is", thingManifoldEci);
     expect(thingManifoldEci).toBeDefined();
-    const addedTag = await addTags(thingManifoldEci, "fake tag");
+    const addedTag = await setSquareTag(thingManifoldEci, "fake tag");
     expect(addedTag).toBeDefined();
   } catch (error) {
     throw error;
