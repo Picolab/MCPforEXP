@@ -210,6 +210,15 @@ const childHasRuleset = tool({
   outputDescription: "Returns boolean indicating if the ruleset is installed (note: this is a direct API call, not via uniform envelope)",
 });
 
+const getRootECI = tool({
+  name: "getRootECI",
+  description:
+    "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
+  properties: {},
+  required: [],
+  outputDescription: "Returns { rootEci: string } — the ECI of the root pico (pico-engine UI pico).",
+});
+
 const installOwner = tool({
   name: "installOwner",
   description: "Install the manifold_owner ruleset on the root pico (requires root ECI)",
@@ -249,6 +258,7 @@ module.exports = {
     safeandmine_update,
     safeandmine_delete,
     safeandmine_newtag,
+    getRootECI,
     addTags,
     childHasRuleset,
     installOwner,
