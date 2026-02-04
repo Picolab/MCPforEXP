@@ -21,10 +21,13 @@ if (require.main === module) {
   main();
 }
 
-/*
-  listThings(manifold_eci)
-  returns the manifold's things as the following JSON object:
-  {
+/**
+ * Retrieves a detailed map of all "Things" managed by a specific Manifold Pico.
+ * @async
+ * @function listThings
+ * @param {string} manifold_eci - The ECI of the Manifold Pico to query.
+ * @returns {Promise<Object<string, Object>>} A map where keys are Pico IDs and values are metadata objects:
+ * {
     "{picoID}": {
       "Rx_role": manifold pico's subscription role,
       "Tx_role": thing's subscription role,
@@ -34,12 +37,11 @@ if (require.main === module) {
       "name": user-input name string,
       "subID": ID of the manifold-thing subscription,
       "picoID": thing's #system #self ECI,
-      "color": color in the pico-engine UI,
-      "picoId": thing's #system #self ECI
-    },
-    ...
-  }
-*/
+      "color": color in the pico-engine UI
+      },
+ * }
+ * @throws {Error} If the engine query fails.
+ */
 async function listThings(manifold_eci) {
   try {
     const response = await fetch(
@@ -63,12 +65,16 @@ async function listThings(manifold_eci) {
 }
 
 /**
- * createThing(manifoldEci, thingName)
- * Triggers the creation of a new Thing and waits for the engine to finish.
+ * Triggers the creation of a new "Thing" Pico within the Manifold system.
+ * Uses an event-wait pattern and polls for discovery by name.
+ * @async
+ * @function createThing
+ * @param {string} manifoldEci - The ECI of the Manifold Pico.
+ * @param {string} thingName - The display name for the new child Pico.
+ * @returns {Promise<string>} The ECI of the newly created Thing.
+ * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
 async function createThing(manifoldEci, thingName) {
-  // console.log(`Creating Thing: "${thingName}"...`);
-
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
@@ -85,14 +91,10 @@ async function createThing(manifoldEci, thingName) {
     }
 
     const data = await response.json();
-    // console.log("Creation event accepted. Searching for new child Pico...");
 
-    // Since the ECI isn't in the response, we poll for the child by name
-    // Try for 10 seconds to give the engine time to finish initialization
     for (let i = 0; i < 10; i++) {
       const thingEci = await getChildEciByName(manifoldEci, thingName);
       if (thingEci) {
-        //console.log(`✅ Thing "${thingName}" found! ECI: ${thingEci}`);
         console.log(thingEci);
         return thingEci;
       }
@@ -110,13 +112,20 @@ async function createThing(manifoldEci, thingName) {
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
 
-// addTag(eci, tagID, domain)
-async function addTag(eci, tagID, domain) {}
-
 // listThingsByTag(eci, tag)
 async function listThingsByTag(eci, tag) {}
 
-// setSquareTag(eci, tagId, domain = "sqtg")
+/**
+ * Registers a SquareTag for a specific Thing.
+ * Automatically ensures the 'safeandmine' ruleset is installed on the Thing before registration.
+ * @async
+ * @function setSquareTag
+ * @param {string} eci - The ECI of the Thing Pico.
+ * @param {string} tagId - The unique identifier for the physical tag.
+ * @param {string} [domain="sqtg"] - The namespace for the tag (default: "sqtg").
+ * @returns {Promise<Object>} The engine's event response containing the event ID.
+ * @throws {Error} If ruleset installation or tag registration fails.
+ */
 async function setSquareTag(eci, tagId, domain = "sqtg") {
   try {
     const rid = "io.picolabs.safeandmine";
