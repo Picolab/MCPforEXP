@@ -46,9 +46,7 @@ async function setupRegistry() {
   const fileUrl = pathToFileURL(filePath).href;
 
   await installRuleset(rootEci, fileUrl);
-  console.log(
-    "Bootstrap ruleset installed. Waiting for channel and completion...",
-  );
+  console.log("Bootstrap ruleset installed. Waiting for completion...");
 
   let bootstrapEci = null;
   const maxAttempts = 30;
@@ -57,24 +55,9 @@ async function setupRegistry() {
   for (let i = 0; i < maxAttempts; i++) {
     try {
       if (!bootstrapEci) {
-        const picoResp = await fetch(
-          `http://127.0.0.1:3000/c/${rootEci}/query/io.picolabs.pico-engine-ui/pico`,
-        );
-
-        if (picoResp.ok) {
-          const data = await picoResp.json();
-          if (data && data.channels) {
-            const chan = data.channels.find(
-              (c) =>
-                c.name === "bootstrap" ||
-                (c.tags && c.tags.includes("bootstrap")),
-            );
-
-            if (chan && chan.id) {
-              bootstrapEci = chan.id;
-              console.log(`\nBootstrap channel found: ${bootstrapEci}`);
-            }
-          }
+        bootstrapEci = await getECIByTag(rootEci, "bootstrap");
+        if (bootstrapEci) {
+          console.log(`\nBootstrap channel found: ${bootstrapEci}`);
         }
       }
 
@@ -86,15 +69,16 @@ async function setupRegistry() {
         if (resp.ok) {
           const status = await resp.json();
           if (status && status.owner_eci) {
+            console.log("\n Bootstrap Complete.");
             return status;
           }
         }
       }
     } catch (error) {
-      // Silently retry during the 30-second window
+      // Let it silently retry
     }
 
-    process.stdout.write("."); // Visual progress
+    process.stdout.write(".");
     await new Promise((r) => setTimeout(r, 1000));
   }
 
