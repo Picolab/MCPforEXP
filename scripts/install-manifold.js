@@ -1,8 +1,4 @@
-const {
-  installOwner,
-  getRootECI,
-  setupRegistry,
-} = require("../src/backend/api-wrapper.js");
+const { getRootECI, setupRegistry } = require("../src/backend/utility.js");
 
 /**
  *

@@ -28,7 +28,7 @@ echo "Pico server started with PID: $PICO_PID"
 node install-manifold.js
 
 # Shutting down pico engine
-kill $PICO_PID
+echo "Pico server will continue running"
 
 
 echo "Setup finished"
