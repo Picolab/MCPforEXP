@@ -89,33 +89,21 @@ async function setupRegistry() {
 
 /**
  * Searches the channels of a specific pico for one containing the "initialization" tag.
- * * @async
+ * @async
  * @function getInitializationECI
  * @param {string} owner_eci - The ECI of the pico to search.
- * @returns {Promise<string|undefined>} The ECI of the initialization channel.
- * @throws {Error} If the channel is not found or the response is invalid.
+ * @returns {Promise<string>} The ECI of the initialization channel.
+ * @throws {Error} If the channel is not found.
  */
 async function getInitializationECI(owner_eci) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
-    const channels = data.channels;
-
-    for (let channel of channels) {
-      if (channel.tags.includes("initialization")) {
-        return channel.id;
-      }
-    }
-    throw new Error("Initialization ECI not found!");
+    return await getECIByTag(owner_eci, "initialization");
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error(
+      `[getInitializationECI] Failed for ECI ${owner_eci}:`,
+      error.message,
+    );
+    throw error;
   }
 }
 
