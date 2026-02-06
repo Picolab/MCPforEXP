@@ -20,7 +20,7 @@ echo "Attaching a note"
 echo "NOT IMPLEMENTED"
 
 echo "Setting SquareTag 'AAABBB'"
-node -e "require('../src/backend/api-wrapper.js').addTags('$THING_ENGINE_ECI', 'AAABBB')"
+node -e "require('../src/backend/api-wrapper.js').setSquareTag('$THING_ENGINE_ECI', 'AAABBB')"
 
 echo "Updating owner information"
 echo "NOT IMPLEMENTED"

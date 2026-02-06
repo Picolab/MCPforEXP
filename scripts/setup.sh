@@ -37,7 +37,7 @@ fi
 echo "Manifold installed"
 
 # Shutting down pico engine
-kill $PICO_PID
+echo "Pico server will continue running"
 
 
 echo "Setup finished"
