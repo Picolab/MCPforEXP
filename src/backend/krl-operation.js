@@ -1,4 +1,5 @@
 const { callKrl } = require("./krl-client");
+const { createThing } = require("./api-wrapper");
 
 /**
  * Uniform KRL operations (events/queries) for MCP integration.

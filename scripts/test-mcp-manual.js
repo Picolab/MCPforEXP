@@ -13,12 +13,15 @@ const {
   getRootECI,
   getInitializationECI,
   getManifoldECI,
+  getChildEciByName,
+  getECIByTag,
 } = require("../src/backend/utility.js");
 const {
   manifold_getThings,
   manifold_isAChild,
   manifold_create_thing,
   safeandmine_getTags,
+  manifold_remove_thing,
 } = require("../src/backend/krl-operation.js");
 
 /**
