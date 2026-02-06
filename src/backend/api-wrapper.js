@@ -232,13 +232,42 @@ async function manifold_isAChild(eci, picoID, id) {
 }
 
 // manifold_pico events
+/**
+ * manifold_create_thing(eci, name, id)
+ * Creates a new thing pico and waits for it to be initialized.
+ * Uses createThing internally which waits for completion and returns the thing's ECI.
+ * Returns uniform envelope format: { id, ok, data: { thingEci }, error?, meta }
+ */
 async function manifold_create_thing(eci, name, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "manifold", type: "create_thing" },
-    args: { name },
-  });
+  const { normalizeId, okResponse, errResponse } = require("./krl-json");
+  
+  try {
+    const thingEci = await createThing(eci, name);
+    return okResponse({
+      id: normalizeId(id),
+      data: { thingEci },
+      meta: {
+        kind: "event",
+        eci,
+        domain: "manifold",
+        type: "create_thing",
+        httpStatus: 200,
+      },
+    });
+  } catch (error) {
+    return errResponse({
+      id: normalizeId(id),
+      code: "NETWORK_ERROR",
+      message: error.message || "Failed to create thing",
+      details: { error: error.message },
+      meta: {
+        kind: "event",
+        eci,
+        domain: "manifold",
+        type: "create_thing",
+      },
+    });
+  }
 }
 
 async function manifold_remove_thing(eci, picoID, id) {
