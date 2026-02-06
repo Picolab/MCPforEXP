@@ -1,3 +1,5 @@
+set -euo pipefail
+
 echo "Starting setup"
 
 # Ensure dependecies are installed
@@ -25,7 +27,14 @@ echo "Pico server started with PID: $PICO_PID"
 # Call the install-manifold.js and it will do the following:
 # 1. Call the pico, and grab the pico eci
 # 2. Install the manifold-owner krl to the installed pico
-node install-manifold.js
+
+echo "Calling install-manifold.js"
+
+if ! node install-manifold.js > /dev/null 2>&1; then
+    echo "ERROR: manifold failed to install"
+    exit 1
+fi
+echo "Manifold installed"
 
 # Shutting down pico engine
 kill $PICO_PID
