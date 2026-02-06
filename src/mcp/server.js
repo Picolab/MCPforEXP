@@ -134,17 +134,43 @@ async function main() {
   );
 
   server.tool(
-    "addTags",
-    "Installs safeandmine ruleset on a thing pico if not already installed",
-    z.object(base),
-    toolHandler(({ eci }) => api.addTags(eci, null)),
+    "getChildEciByName",
+    "Find the ECI of a child pico by name. Queries a parent pico to find a child pico with a specific name.",
+    z.object({ parentEci: z.string().describe("Parent pico ECI"), childName: z.string().describe("Name of the child pico to find") }),
+    toolHandler(async ({ parentEci, childName }) => {
+      const eci = await api.getChildEciByName(parentEci, childName);
+      return { eci: eci || null };
+    }),
   );
 
   server.tool(
-    "childHasRuleset",
-    "Check if a ruleset (RID) is installed on a child pico",
-    z.object({ ...base, rid: z.string().describe("Ruleset ID to check (e.g., io.picolabs.safeandmine)") }),
-    toolHandler(({ eci, rid }) => api.childHasRuleset(eci, rid)),
+    "getInitializationECI",
+    "Get the initialization channel ECI from an owner pico. This channel has proper permissions for querying manifold_owner.",
+    z.object({ ownerEci: z.string().describe("Owner pico ECI") }),
+    toolHandler(async ({ ownerEci }) => {
+      const eci = await api.getInitializationECI(ownerEci);
+      return { eci: eci || null };
+    }),
+  );
+
+  server.tool(
+    "getManifoldECI",
+    "Get the manifold pico channel ECI (channel tagged 'manifold') from the owner pico. Requires owner initialization ECI.",
+    z.object({ ownerInitializationEci: z.string().describe("Owner pico initialization ECI (from getInitializationECI)") }),
+    toolHandler(async ({ ownerInitializationEci }) => {
+      const eci = await api.getManifoldECI(ownerInitializationEci);
+      return { eci: eci || null };
+    }),
+  );
+
+  server.tool(
+    "getECIByTag",
+    "Get a channel ECI by tag from a pico. Searches all channels on the pico for one with the specified tag.",
+    z.object({ eci: z.string().describe("Pico ECI to search"), tag: z.string().describe("Tag to search for (e.g., 'manifold', 'initialization')") }),
+    toolHandler(async ({ eci, tag }) => {
+      const channelEci = await api.getECIByTag(eci, tag);
+      return { eci: channelEci || null };
+    }),
   );
 
   server.tool(
@@ -152,13 +178,6 @@ async function main() {
     "Install the manifold_owner ruleset on the root pico (requires root ECI)",
     z.object(base),
     toolHandler(({ eci }) => api.installOwner(eci)),
-  );
-
-  server.tool(
-    "initializeManifold",
-    "Full bootstrap: install owner ruleset, create manifold pico, return manifold ECI (no args needed, uses root ECI)",
-    z.object({}),
-    toolHandler(() => api.initializeManifold()),
   );
 
   server.tool(

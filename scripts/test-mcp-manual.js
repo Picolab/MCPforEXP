@@ -21,6 +21,43 @@ const {
   safeandmine_getTags,
 } = require("../src/backend/krl-operation.js");
 
+/**
+ * Helper function to check if a result actually succeeded.
+ * KRL queries can return errors in the data field even when HTTP status is 200.
+ */
+function isSuccess(result) {
+  if (!result || !result.ok) {
+    return false;
+  }
+  // Check if data contains an error field (common KRL error pattern)
+  if (result.data && typeof result.data === "object") {
+    // Check if error property exists and has a truthy value (null/undefined are considered "no error")
+    if (
+      "error" in result.data &&
+      result.data.error !== null &&
+      result.data.error !== undefined
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Helper to extract error message from a result
+ */
+function getErrorMessage(result) {
+  if (result.error) {
+    return result.error.message || JSON.stringify(result.error);
+  }
+  if (result.data?.error) {
+    return typeof result.data.error === "string"
+      ? result.data.error
+      : JSON.stringify(result.data.error);
+  }
+  return "Unknown error";
+}
+
 async function testManifoldConnection() {
   console.log("=".repeat(60));
   console.log("Manual MCP Server → Manifold Connection Test");
@@ -28,7 +65,7 @@ async function testManifoldConnection() {
   console.log();
 
   try {
-    // Step 1: Get manifold ECI
+    // Step 1: Get manifold ECI (using the correct channel with proper permissions)
     console.log("Step 1: Getting Manifold pico ECI...");
     const rootECI = await getRootECI();
     if (!rootECI) {
@@ -38,13 +75,21 @@ async function testManifoldConnection() {
     }
     console.log("✓ Root ECI:", rootECI);
 
-    const initECI = await getInitializationECI(rootECI);
-    if (!initECI) {
-      throw new Error("Failed to get initialization ECI");
+    const OwnerECI = await getChildEciByName(rootECI, "Owner");
+    if (!OwnerECI) {
+      throw new Error("Failed to get owner ECI");
     }
-    console.log("✓ Initialization ECI:", initECI);
+    console.log("✓ Owner ECI:", OwnerECI);
 
-    const manifoldECI = await getManifoldECI(initECI);
+    // Get the Owner's initialization ECI (channel with proper permissions)
+    const ownerInitializationECI = await getInitializationECI(OwnerECI);
+    if (!ownerInitializationECI) {
+      throw new Error("Failed to get owner initialization ECI");
+    }
+    console.log("✓ Owner Initialization ECI:", ownerInitializationECI);
+
+    // Get the manifold channel ECI (not the pico ECI, but the channel with "manifold" tag)
+    const manifoldECI = await getManifoldECI(ownerInitializationECI);
     if (!manifoldECI) {
       throw new Error("Failed to get manifold ECI. Run 'npm run setup' first?");
     }
@@ -55,18 +100,42 @@ async function testManifoldConnection() {
     console.log("Step 2: Testing manifold_getThings query...");
     const getThingsResult = await manifold_getThings(manifoldECI);
     console.log("Result:", JSON.stringify(getThingsResult, null, 2));
-    if (getThingsResult.ok) {
+    if (isSuccess(getThingsResult)) {
       console.log("✓ Query succeeded!");
-      const thingCount = Object.keys(getThingsResult.data || {}).length;
+      const things = getThingsResult.data || {};
+      const thingCount = Object.keys(things).length;
       console.log(`  Found ${thingCount} thing(s)`);
+
+      // Clean up any leftover "Test Thing" items from previous test runs
+      const testThings = Object.entries(things).filter(
+        ([_, thing]) => thing.name === "Test Thing",
+      );
+      if (testThings.length > 0) {
+        console.log(
+          `  Cleaning up ${testThings.length} leftover "Test Thing" item(s) from previous test runs...`,
+        );
+        for (const [picoID, _] of testThings) {
+          try {
+            await manifold_remove_thing(manifoldECI, picoID);
+            console.log(`    Removed "Test Thing" (picoID: ${picoID})`);
+          } catch (err) {
+            console.log(
+              `    Failed to remove "Test Thing" (picoID: ${picoID}): ${err.message}`,
+            );
+          }
+        }
+        // Wait for cleanup to complete
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        console.log("  Cleanup complete");
+      }
     } else {
-      console.log("✗ Query failed:", getThingsResult.error?.message);
+      console.log("✗ Query failed:", getErrorMessage(getThingsResult));
     }
     console.log();
 
     // Step 3: Test isAChild query
     if (
-      getThingsResult.ok &&
+      isSuccess(getThingsResult) &&
       Object.keys(getThingsResult.data || {}).length > 0
     ) {
       const firstThingPicoID = Object.keys(getThingsResult.data)[0];
@@ -78,15 +147,17 @@ async function testManifoldConnection() {
         firstThingPicoID,
       );
       console.log("Result:", JSON.stringify(isChildResult, null, 2));
-      if (isChildResult.ok) {
+      if (isSuccess(isChildResult)) {
         console.log("✓ Query succeeded!");
         console.log(`  Is child: ${isChildResult.data}`);
       } else {
-        console.log("✗ Query failed:", isChildResult.error?.message);
+        console.log("✗ Query failed:", getErrorMessage(isChildResult));
       }
       console.log();
     } else {
-      console.log("Step 3: Skipping isAChild test (no things found)");
+      console.log(
+        "Step 3: Skipping isAChild test (no things found or getThings failed)",
+      );
       console.log();
     }
 
@@ -98,14 +169,14 @@ async function testManifoldConnection() {
       testThingName,
     );
     console.log("Result:", JSON.stringify(createResult, null, 2));
-    if (createResult.ok && createResult.meta?.httpStatus === 200) {
+    if (isSuccess(createResult)) {
       console.log("✓ Event succeeded!");
       console.log(`  Created thing: ${testThingName}`);
+      if (createResult.data?.thingEci) {
+        console.log(`  Thing ECI: ${createResult.data.thingEci}`);
+      }
     } else {
-      console.log(
-        "✗ Event failed:",
-        createResult.error?.message || "HTTP status not 200",
-      );
+      console.log("✗ Event failed:", getErrorMessage(createResult));
     }
     console.log();
 
@@ -123,11 +194,23 @@ async function testManifoldConnection() {
       } else {
         console.log("⚠ New thing not yet visible (may need more time)");
       }
+    } else {
+      console.log("✗ Failed to verify:", getErrorMessage(verifyResult));
     }
     console.log();
 
     // Step 6: Test safeandmine operations (if we have a thing pico)
-    if (verifyResult.ok && Object.keys(verifyResult.data || {}).length > 0) {
+    // We need to get a channel on the thing pico with proper permissions, not just the system ECI
+    let thingPicoECI = null; // The thing pico's system ECI
+
+    if (isSuccess(createResult) && createResult.data?.thingEci) {
+      thingPicoECI = createResult.data.thingEci;
+      console.log(`Step 6: Thing pico ECI from create_thing: ${thingPicoECI}`);
+    } else if (
+      isSuccess(verifyResult) &&
+      Object.keys(verifyResult.data || {}).length > 0
+    ) {
+      // Fallback: try to get thing pico ECI from getThings result
       const firstThing = Object.values(verifyResult.data)[0];
       const thingPicoID = firstThing.picoID || firstThing.picoId;
 
@@ -137,7 +220,6 @@ async function testManifoldConnection() {
         );
 
         // Get the thing pico's actual ECI by querying wrangler on the manifold pico
-        // We need to get the child pico's channels to find its ECI
         try {
           const thingChannelsResp = await fetch(
             `http://localhost:3000/c/${manifoldECI}/query/io.picolabs.wrangler/children`,
@@ -155,30 +237,8 @@ async function testManifoldConnection() {
               : null;
 
             if (thingChild && thingChild.eci) {
-              const thingECI = thingChild.eci;
-              console.log(`✓ Found thing ECI: ${thingECI}`);
-
-              // First, ensure safeandmine is installed
-              console.log(`  Installing safeandmine ruleset if needed...`);
-              await addTags(thingECI, null);
-              await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for installation
-
-              // Now test safeandmine query
-              console.log(`  Testing safeandmine_getTags...`);
-              const tagsResult = await safeandmine_getTags(thingECI);
-              console.log("Result:", JSON.stringify(tagsResult, null, 2));
-              if (tagsResult.ok && !tagsResult.data?.error) {
-                console.log("✓ Query succeeded!");
-                console.log(`  Tags: ${JSON.stringify(tagsResult.data)}`);
-              } else {
-                console.log(
-                  "⚠ Query returned error:",
-                  tagsResult.data?.error || tagsResult.error?.message,
-                );
-                console.log(
-                  "  (This is expected if safeandmine isn't fully installed yet)",
-                );
-              }
+              thingPicoECI = thingChild.eci;
+              console.log(`✓ Found thing pico ECI: ${thingPicoECI}`);
             } else {
               console.log("⚠ Could not find thing pico ECI from children list");
             }
@@ -187,12 +247,60 @@ async function testManifoldConnection() {
           }
         } catch (err) {
           console.log("⚠ Error getting thing ECI:", err.message);
+        }
+      }
+    }
+
+    // Now get a channel on the thing pico with proper permissions
+    // Query the thing pico's channels to find one that can query safeandmine
+    if (thingPicoECI) {
+      console.log(`  Finding channel on thing pico with proper permissions...`);
+      let thingChannelECI = null;
+
+      try {
+        // First, try to find the "Manifold" channel using getECIByTag (this is the channel that works)
+        try {
+          thingChannelECI = await getECIByTag(thingPicoECI, "manifold");
+          if (thingChannelECI) {
+            console.log(`✓ Found Manifold channel via tag: ${thingChannelECI}`);
+          }
+        } catch (err) {
+          // getECIByTag failed, continue to query channels directly
+        }
+
+        // If no channel found, use the thing pico ECI as fallback
+        if (!thingChannelECI) {
+          thingChannelECI = thingPicoECI;
+          console.log(`  Using thing pico ECI as fallback: ${thingChannelECI}`);
+        }
+
+        // Now test safeandmine query
+        console.log(
+          `  Testing safeandmine_getTags with ECI: ${thingChannelECI}...`,
+        );
+        const tagsResult = await safeandmine_getTags(thingChannelECI);
+        console.log("Result:", JSON.stringify(tagsResult, null, 2));
+        if (isSuccess(tagsResult)) {
+          console.log("✓ Query succeeded!");
+          console.log(`  Tags: ${JSON.stringify(tagsResult.data)}`);
+        } else {
+          console.log("⚠ Query returned error:", getErrorMessage(tagsResult));
           console.log(
-            "  Note: safeandmine queries require the thing pico's actual ECI, not subscription channels",
+            "  (This may be due to channel policy - thing picos need proper channels for safeandmine queries)",
           );
         }
         console.log();
+      } catch (err) {
+        console.log(
+          `⚠ Error finding channel or querying safeandmine: ${err.message}`,
+        );
+        console.log();
       }
+    } else {
+      console.log(
+        "Step 6: Skipping safeandmine test (no thing pico ECI available)",
+      );
+      console.log();
     }
 
     console.log("=".repeat(60));
