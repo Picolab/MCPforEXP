@@ -1,15 +1,17 @@
 const {
+  setSquareTag,
+  scanTag,
+  listThings,
+  createThing,
+} = require("../../src/backend/api-wrapper");
+const {
   getRootECI,
   getInitializationECI,
   getManifoldECI,
   picoHasRuleset,
-  addTags,
-  listThings,
-  setupRegistry,
   getECIByTag,
   getChildEciByName,
-  createThing,
-} = require("../../src/backend/api-wrapper");
+} = require("../../src/backend/utility");
 
 // test("get initial ECI", async () => {
 //   try {
@@ -102,7 +104,7 @@ test("add tags", async () => {
     const thingManifoldEci = await getECIByTag(thingEci, "manifold");
     console.log("Thing manifold eci is", thingManifoldEci);
     expect(thingManifoldEci).toBeDefined();
-    const addedTag = await addTags(thingManifoldEci, "fake tag");
+    const addedTag = await setSquareTag(thingManifoldEci, "fake tag");
     expect(addedTag).toBeDefined();
   } catch (error) {
     throw error;

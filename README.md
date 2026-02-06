@@ -1,9 +1,9 @@
 # README
 
-This is a repository for the MCPforEXP project. The project aims to create a conversational interface for Manifold. 
-
+This is a repository for the MCPforEXP project. The project aims to create a conversational interface for Manifold.
 
 ## Project Structure
+
 The project is structured to clearly separate concerns and support scalability and testing. Source code lives under src/, with backend logic divided between server functionality and LLM/MCP integration, and the UI isolated in its own directory. Tests mirror the source structure under test/, making it easy to locate and maintain test coverage alongside corresponding components. Supporting scripts are kept in scripts/ to keep automation and tooling separate from application logic. This layout was chosen to improve readability, encourage modular development, and make the system easier to extend as the MCP and LLM integrations evolve.
 
 ```text
@@ -11,12 +11,14 @@ The project is structured to clearly separate concerns and support scalability a
 ├── src/
 │   ├── backend/
 │   │   ├── server/
-│   │   └── llm/
+│   │   ├── llm/
+│   │   └── mcp/
 │   └── ui/
 ├── test/
 │   ├── backend/
 │   │   ├── server/
-│   │   └── llm/
+│   │   ├── llm/
+│   │   └── mcp/
 │   └── ui/
 ```
 
@@ -41,7 +43,8 @@ After running the setup script you can then start the pico engine at will.
 npm run setup
 pico-engine
 ```
-The *npm run setup command* runs the scripts/setup.sh script.
+
+The _npm run setup command_ runs the scripts/setup.sh script.
 
 ### Teardown
 
@@ -50,7 +53,6 @@ Stop servers and clean up any temporary processes or files:
 ```bash
 npm run teardown
 ```
-
 
 This runs the scripts/teardown.sh script.
 
@@ -102,7 +104,13 @@ Success:
   "id": "optional-correlation-id",
   "ok": true,
   "data": {},
-  "meta": { "kind": "query", "eci": "ECI_HERE", "rid": "io.picolabs.manifold_pico", "name": "getThings", "httpStatus": 200 }
+  "meta": {
+    "kind": "query",
+    "eci": "ECI_HERE",
+    "rid": "io.picolabs.manifold_pico",
+    "name": "getThings",
+    "httpStatus": 200
+  }
 }
 ```
 
@@ -112,14 +120,24 @@ Error:
 {
   "id": "optional-correlation-id",
   "ok": false,
-  "error": { "code": "HTTP_ERROR", "message": "Upstream returned HTTP 500", "details": {} },
-  "meta": { "kind": "query", "eci": "ECI_HERE", "rid": "io.picolabs.manifold_pico", "name": "getThings", "httpStatus": 500 }
+  "error": {
+    "code": "HTTP_ERROR",
+    "message": "Upstream returned HTTP 500",
+    "details": {}
+  },
+  "meta": {
+    "kind": "query",
+    "eci": "ECI_HERE",
+    "rid": "io.picolabs.manifold_pico",
+    "name": "getThings",
+    "httpStatus": 500
+  }
 }
 ```
 
 ### Implemented operations (MCP-friendly)
 
-These helpers live in `src/backend/api-wrapper.js` and all return the envelope above:
+These helpers live in `src/backend/krl-operation.js` and all return the envelope above:
 
 - **Manifold pico**
   - Query: `manifold_getThings(eci)`
