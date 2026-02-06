@@ -1,6 +1,6 @@
 const {
-  addTag,
   setSquareTag,
+  scanTag,
   listThings,
   createThing,
 } = require("../../src/backend/api-wrapper");

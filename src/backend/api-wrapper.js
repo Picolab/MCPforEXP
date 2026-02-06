@@ -112,9 +112,6 @@ async function createThing(manifoldEci, thingName) {
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
 
-// listThingsByTag(eci, tag)
-async function listThingsByTag(eci, tag) {}
-
 /**
  * Registers a SquareTag for a specific Thing.
  * Automatically ensures the 'safeandmine' ruleset is installed on the Thing before registration.
@@ -162,12 +159,63 @@ async function setSquareTag(eci, tagId, domain = "sqtg") {
   }
 }
 
+/**
+ * Gets owner info from a given tag
+ *
+ * @param {string} tagId
+ * @param {string} [domain=sqtg]
+ *
+ * @returns {object} JSON with owner data:
+ * {
+ *  name: string,
+ *  email: string,
+ *  phone: string,
+ *  message: string,
+ *  shareName: bool,
+ *  sharePhone: bool,
+ *  shareEmail: bool
+ * }
+ */
+async function scanTag(tagId, domain = "sqtg") {
+  try {
+    const rootECI = getRootECI();
+    const tagRegistryECI = getChildEciByName(rootECI, "Tag Registry");
+    const registrationECI = getECIByTag(tagRegistryECI, "registration");
+
+    const scanTagResponse = await fetch(
+      `http://localhost:3000/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagID: tagId, domain: domain }),
+      },
+    );
+
+    const scanTagData = await scanTagResponse.json();
+    const tagECI = scanTagData.did;
+
+    const infoResponse = await fetch(
+      `http://localhost:3000/c/${tagECI}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+
+    const infoData = await infoResponse.json();
+
+    return infoData;
+  } catch (err) {
+    console.error("scanTag error: ", err);
+  }
+}
+
 module.exports = {
   main,
   listThings,
   createThing,
   addNote,
-  addTag,
   setSquareTag,
-  listThingsByTag,
+  scanTag,
 };
