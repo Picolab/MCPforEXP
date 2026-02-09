@@ -5,8 +5,10 @@ const {
   getInitializationECI,
   getManifoldECI,
   picoHasRuleset,
+  installRuleset,
   getECIByTag,
   getChildEciByName,
+  sendAPICall,
 } = require("./utility.js");
 
 async function main() {
@@ -109,8 +111,44 @@ async function createThing(manifoldEci, thingName) {
   }
 }
 
-// addNote(eci, title, content)
-async function addNote(eci, title, content) {}
+/**
+ * @param {*} eci - The ECI that you want to add the journal krl to (if not already). And the ECI that will have a note added to.
+ * @param {*} title - The title of the note
+ * @param {*} content - The content of the note
+ *
+ * This function first checks to see if the jounal krl is installed, if not it installs it.
+ * It then sends a message to the event-wait/journal/new_entry endpoint for the chosen ECI.
+ */
+async function addNote(eci, title, content) {
+  try {
+    const rid = "io.picolabs.journal";
+    const isInstalled = await picoHasRuleset(eci, rid);
+
+    if (!isInstalled) {
+      console.log("Installing journal...");
+      const absolutePath = path.join(
+        __dirname,
+        `../../Manifold-api/${rid}.krl`,
+      );
+      await installRuleset(eci, pathToFileURL(absolutePath).href);
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+
+    // Send API request
+
+    const requestEndpoint = `/c/${eci}/event-wait/journal/new_entry`;
+    const requestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title, content: content }),
+    };
+    const data = await sendAPICall(requestEndpoint, requestBody);
+    console.log("Data is", data);
+  } catch (err) {
+    console.error("Error in addNote:", err);
+    throw err;
+  }
+}
 
 /**
  * Registers a SquareTag for a specific Thing.

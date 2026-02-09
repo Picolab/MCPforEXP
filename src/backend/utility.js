@@ -1,5 +1,9 @@
+const { request } = require("http");
 const path = require("path");
 const { pathToFileURL } = require("url");
+
+// THIS SHOULD BE INCLUDED INSIDE OF AN INDEX.JS BUT SINCE WE DON'T HAVE ONE YET:
+require("dotenv").config();
 
 /**
  * Fetches the root ECI of the UI pico from the engine's local context.
@@ -308,13 +312,69 @@ async function picoHasRuleset(picoEci, rid) {
   }
 }
 
+/**
+ * @param {*} variable - This should be the enviornement variable accessed by process.env.<VAR_NAME>
+ * @param {*} variableName - This is the name of the variable passed in for error logging purposes.
+ * @returns - The variable if it's not null. This way we don't have to worry about null errors.
+ *
+ * This function first checks to see if the varable is not null. If it's not it returns it.
+ * If it is, it throws an error.
+ */
+async function checkENVVariable(variable, variableName) {
+  if (variable !== null) {
+    return variable;
+  } else {
+    throw new Error(
+      `The enviornment variable ${variableName} is null in the enviornment`,
+    );
+  }
+}
+
+/**
+ * @param {*} requestURL - Should be the pico url starting with /c/...
+ * @param {*} body - The request body included with the fetch call.
+ * @returns - The response body JSON
+ *
+ * This function takes in the request url and body.
+ * It then pulls in the base url from the enviornment variable and then sends a request to
+ * the endpoint <baseURL>+<requestURL>.
+ * It then checks for errors and returns the response if no error.
+ *
+ */
+async function sendAPICall(requestEndpoint, body) {
+  try {
+    const baseURL = await checkENVVariable(process.env.PICO_ENGINE_BASE_URL);
+    const requestURL = baseURL + requestEndpoint;
+    console.log("RequestURL: ", requestURL);
+    const fetchResponse = await fetch(requestURL, body);
+    // parse the JSON request body
+    const responseData = await fetchResponse.json();
+
+    console.log("ResponseData: ", responseData);
+
+    // Check for errors:
+    // Since we aren't worrying about auth we can log both the request endpoing and the body.
+    if ("error" in responseData) {
+      throw new Error(
+        `There was an error when calling ${requestURL} with the body ${body} and the message returned: ${responseData}`,
+      );
+    }
+
+    return responseData;
+  } catch (err) {
+    throw new Error(err);
+  }
+}
+
 module.exports = {
   getRootECI,
   getInitializationECI,
   getManifoldECI,
   picoHasRuleset,
   installOwner,
+  installRuleset,
   setupRegistry,
   getECIByTag,
   getChildEciByName,
+  sendAPICall,
 };

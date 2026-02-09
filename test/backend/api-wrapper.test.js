@@ -3,6 +3,7 @@ const {
   scanTag,
   listThings,
   createThing,
+  addNote,
 } = require("../../src/backend/api-wrapper");
 const {
   getRootECI,
