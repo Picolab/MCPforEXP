@@ -14,10 +14,31 @@ const { tools } = require("./tools");
 
 // MCP SDK (installed via npm): @modelcontextprotocol/sdk
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
+const {
+  StdioServerTransport,
+} = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { z } = require("zod");
 
-const api = require("../backend/api-wrapper");
+const {
+  getRootECI,
+  getInitializationECI,
+  getManifoldECI,
+  installOwner,
+  getECIByTag,
+  getChildEciByName,
+} = require("./utility.js");
+const {
+  manifold_getThings,
+  manifold_isAChild,
+  manifold_create_thing,
+  manifold_remove_thing,
+  manifold_change_thing_name,
+  safeandmine_getInformation,
+  safeandmine_getTags,
+  safeandmine_update,
+  safeandmine_delete,
+  safeandmine_newtag,
+} = require("./krl-operation.js");
 
 function asJsonContent(obj) {
   return [{ type: "text", text: JSON.stringify(obj, null, 2) }];
@@ -45,49 +66,49 @@ async function main() {
     "manifold_getThings",
     "KRL query: io.picolabs.manifold_pico/getThings",
     { ...base},
-    toolHandler(({ eci, id }) => api.manifold_getThings(eci, id)),
+    toolHandler(({ eci, id }) => manifold_getThings(eci, id)),
   );
 
   server.tool(
     "manifold_isAChild",
     "KRL query: io.picolabs.manifold_pico/isAChild",
     { ...base, picoID: z.string() },
-    toolHandler(({ eci, picoID, id }) => api.manifold_isAChild(eci, picoID, id)),
+    toolHandler(({ eci, picoID, id }) => manifold_isAChild(eci, picoID, id)),
   );
 
   server.tool(
     "manifold_create_thing",
     "KRL event: manifold/create_thing (attrs: name)",
     { ...base, name: z.string() },
-    toolHandler(({ eci, name, id }) => api.manifold_create_thing(eci, name, id)),
+    toolHandler(({ eci, name, id }) => manifold_create_thing(eci, name, id)),
   );
 
   server.tool(
     "manifold_remove_thing",
     "KRL event: manifold/remove_thing (attrs: picoID)",
     { ...base, picoID: z.string() },
-    toolHandler(({ eci, picoID, id }) => api.manifold_remove_thing(eci, picoID, id)),
+    toolHandler(({ eci, picoID, id }) => manifold_remove_thing(eci, picoID, id)),
   );
 
   server.tool(
     "manifold_change_thing_name",
     "KRL event: manifold/change_thing_name (attrs: picoID, changedName)",
     { ...base, picoID: z.string(), changedName: z.string() },
-    toolHandler(({ eci, picoID, changedName, id }) => api.manifold_change_thing_name(eci, picoID, changedName, id)),
+    toolHandler(({ eci, picoID, changedName, id }) => manifold_change_thing_name(eci, picoID, changedName, id)),
   );
 
   server.tool(
     "safeandmine_getInformation",
     "KRL query: io.picolabs.safeandmine/getInformation (optional arg: info)",
     { ...base, info: z.string().optional() },
-    toolHandler(({ eci, info, id }) => api.safeandmine_getInformation(eci, info, id)),
+    toolHandler(({ eci, info, id }) => safeandmine_getInformation(eci, info, id)),
   );
 
   server.tool(
     "safeandmine_getTags",
     "KRL query: io.picolabs.safeandmine/getTags",
     { ...base },
-    toolHandler(({ eci, id }) => api.safeandmine_getTags(eci, id)),
+    toolHandler(({ eci, id }) => safeandmine_getTags(eci, id)),
   );
 
   server.tool(
@@ -104,7 +125,7 @@ async function main() {
       sharePhone: z.boolean().optional(),
     },
     toolHandler(({ eci, id, name, email, phone, message, shareName, shareEmail, sharePhone }) =>
-      api.safeandmine_update(eci, { name, email, phone, message, shareName, shareEmail, sharePhone }, id),
+      safeandmine_update(eci, { name, email, phone, message, shareName, shareEmail, sharePhone }, id),
     ),
   );
 
@@ -112,14 +133,14 @@ async function main() {
     "safeandmine_delete",
     "KRL event: safeandmine/delete (optional attr: toDelete). If omitted clears all stored info.",
     { ...base, toDelete: z.string().optional() },
-    toolHandler(({ eci, toDelete, id }) => api.safeandmine_delete(eci, toDelete, id)),
+    toolHandler(({ eci, toDelete, id }) => safeandmine_delete(eci, toDelete, id)),
   );
 
   server.tool(
     "safeandmine_newtag",
     "KRL event: safeandmine/new_tag (attrs: tagID, domain)",
     { ...base, tagID: z.string(), domain: z.string() },
-    toolHandler(({ eci, tagID, domain, id }) => api.safeandmine_newtag(eci, tagID, domain, id)),
+    toolHandler(({ eci, tagID, domain, id }) => safeandmine_newtag(eci, tagID, domain, id)),
   );
 
   // Additional utility tools from api-wrapper
@@ -128,7 +149,7 @@ async function main() {
     "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
       {},
     toolHandler(async () => {
-      const eci = await api.getRootECI();
+      const eci = await getRootECI();
       return { rootEci: eci };
     }),
   );
@@ -137,14 +158,14 @@ async function main() {
     "addTags",
     "Installs safeandmine ruleset on a thing pico if not already installed",
     { ...base },
-    toolHandler(({ eci }) => api.addTags(eci, null)),
+    toolHandler(({ eci }) => addTags(eci, null)),
   );
 
   server.tool(
     "childHasRuleset",
     "Check if a ruleset (RID) is installed on a child pico",
     { ...base, rid: z.string().describe("Ruleset ID to check (e.g., io.picolabs.safeandmine)") },
-    toolHandler(({ eci, rid }) => api.childHasRuleset(eci, rid)),
+    toolHandler(({ eci, rid }) => childHasRuleset(eci, rid)),
     );
   
   server.tool(
@@ -152,7 +173,7 @@ async function main() {
     "Find the ECI of a child pico by name. Queries a parent pico to find a child pico with a specific name.",
     { parentEci: z.string().describe("Parent pico ECI"), childName: z.string().describe("Name of the child pico to find") },
     toolHandler(async ({ parentEci, childName }) => {
-      const eci = await api.getChildEciByName(parentEci, childName);
+      const eci = await getChildEciByName(parentEci, childName);
       return { eci: eci || null };
     }),
   );
@@ -162,7 +183,7 @@ async function main() {
     "Get the initialization channel ECI from an owner pico. This channel has proper permissions for querying manifold_owner.",
     z.object({ ownerEci: z.string().describe("Owner pico ECI") }),
     toolHandler(async ({ ownerEci }) => {
-      const eci = await api.getInitializationECI(ownerEci);
+      const eci = await getInitializationECI(ownerEci);
       return { eci: eci || null };
     }),
   );
@@ -170,9 +191,13 @@ async function main() {
   server.tool(
     "getManifoldECI",
     "Get the manifold pico channel ECI (channel tagged 'manifold') from the owner pico. Requires owner initialization ECI.",
-    z.object({ ownerInitializationEci: z.string().describe("Owner pico initialization ECI (from getInitializationECI)") }),
+    z.object({
+      ownerInitializationEci: z
+        .string()
+        .describe("Owner pico initialization ECI (from getInitializationECI)"),
+    }),
     toolHandler(async ({ ownerInitializationEci }) => {
-      const eci = await api.getManifoldECI(ownerInitializationEci);
+      const eci = await getManifoldECI(ownerInitializationEci);
       return { eci: eci || null };
     }),
   );
@@ -180,9 +205,14 @@ async function main() {
   server.tool(
     "getECIByTag",
     "Get a channel ECI by tag from a pico. Searches all channels on the pico for one with the specified tag.",
-    z.object({ eci: z.string().describe("Pico ECI to search"), tag: z.string().describe("Tag to search for (e.g., 'manifold', 'initialization')") }),
+    z.object({
+      eci: z.string().describe("Pico ECI to search"),
+      tag: z
+        .string()
+        .describe("Tag to search for (e.g., 'manifold', 'initialization')"),
+    }),
     toolHandler(async ({ eci, tag }) => {
-      const channelEci = await api.getECIByTag(eci, tag);
+      const channelEci = await getECIByTag(eci, tag);
       return { eci: channelEci || null };
     }),
   );
@@ -191,21 +221,21 @@ async function main() {
     "installOwner",
     "Install the manifold_owner ruleset on the root pico (requires root ECI)",
     { ...base },
-    toolHandler(({ eci }) => api.installOwner(eci)),
+    toolHandler(({ eci }) => installOwner(eci)),
   );
 
   server.tool(
     "initializeManifold",
     "Full bootstrap: install owner ruleset, create manifold pico, return manifold ECI (no args needed, uses root ECI)",
     { ...base },
-    toolHandler(({ eci }) => api.initializeManifold(eci)),
+    toolHandler(({ eci }) => initializeManifold(eci)),
   );
 
   server.tool(
     "installRuleset",
     "Install a KRL ruleset on a pico via file:// URL",
     { ...base, filePath: z.string().describe("File URL (e.g., file:///path/to/ruleset.krl)") },
-    toolHandler(({ eci, filePath }) => api.installRuleset(eci, filePath)),
+    toolHandler(({ eci, filePath }) => installRuleset(eci, filePath)),
   );
 
   const transport = new StdioServerTransport();
@@ -217,4 +247,3 @@ main().catch((e) => {
   console.error("MCP server failed:", e);
   process.exit(1);
 });
-
