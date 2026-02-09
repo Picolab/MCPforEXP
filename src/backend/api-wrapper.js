@@ -150,6 +150,33 @@ async function addNote(eci, title, content) {
   }
 }
 
+
+
+async function getNote(eci, title) {
+  try {
+    const rid = "io.picolabs.journal";
+    const isInstalled = await picoHasRuleset(eci, rid);
+
+    if (!isInstalled) {
+      // If trying to get note and this isn't installed then there's no point in installing it to get a note. It's impossible.
+      throw new Error("Error in getNote: journal ruleset not installed.")
+    }
+
+    const requestEndpoint = `/c/${eci}/event-wait/journal/get_entry` // This is just a guess, I'll fill it in for real in a minute.
+    const requestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title })
+    }
+
+    const data = await sendAPICall(requestEndpoint, requestBody);
+    console.log("Data is", data);
+  } catch (err) {
+    console.error("Error in getNote: ", err);
+    throw err;
+  }
+}
+
 /**
  * Registers a SquareTag for a specific Thing.
  * Automatically ensures the 'safeandmine' ruleset is installed on the Thing before registration.
@@ -254,6 +281,7 @@ module.exports = {
   listThings,
   createThing,
   addNote,
+  getNote,
   setSquareTag,
   scanTag,
 };
