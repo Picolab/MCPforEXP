@@ -10,22 +10,26 @@ const {
 } = require("./utility.js");
 
 async function main() {
-  const rootECI = await getRootECI();
-  const ownerECI = await getChildEciByName(rootECI, "Owner");
-  const ownerInitializationECI = await getInitializationECI(ownerECI);
-  const manifoldECI = await getManifoldECI(ownerInitializationECI);
-  console.log(manifoldECI);
+  console.log(await traverseHierarchy());
 }
 
 if (require.main === module) {
   main();
 }
 
+async function traverseHierarchy() {
+  const rootECI = await getRootECI();
+  const ownerECI = await getChildEciByName(rootECI, "Owner");
+  const ownerInitializationECI = await getInitializationECI(ownerECI);
+  const manifoldECI = await getManifoldECI(ownerInitializationECI);
+  const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
+  return manifoldChannel;
+}
+
 /**
- * Retrieves a detailed map of all "Things" managed by a specific Manifold Pico.
+ * Automatically determines the Manifold Pico and retrieves a detailed map of all it's "Things".
  * @async
  * @function listThings
- * @param {string} manifold_eci - The ECI of the Manifold Pico to query.
  * @returns {Promise<Object<string, Object>>} A map where keys are Pico IDs and values are metadata objects:
  * {
     "{picoID}": {
@@ -42,8 +46,11 @@ if (require.main === module) {
  * }
  * @throws {Error} If the engine query fails.
  */
-async function listThings(manifold_eci) {
+async function listThings() {
   try {
+    //Get the manifold channel ECI by traversing the pico hierarchy
+    const manifold_eci = await traverseHierarchy();
+
     const response = await fetch(
       `http://localhost:3000/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`,
       {
@@ -69,12 +76,12 @@ async function listThings(manifold_eci) {
  * Uses an event-wait pattern and polls for discovery by name.
  * @async
  * @function createThing
- * @param {string} manifoldEci - The ECI of the Manifold Pico.
  * @param {string} thingName - The display name for the new child Pico.
  * @returns {Promise<string>} The ECI of the newly created Thing.
  * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
-async function createThing(manifoldEci, thingName) {
+async function createThing(thingName) {
+  const manifoldEci = await traverseHierarchy();
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
@@ -117,16 +124,20 @@ async function addNote(eci, title, content) {}
  * Automatically ensures the 'safeandmine' ruleset is installed on the Thing before registration.
  * @async
  * @function setSquareTag
- * @param {string} eci - The ECI of the Thing Pico.
+ * @param {string} thingName - The name of the Thing Pico.
  * @param {string} tagId - The unique identifier for the physical tag.
  * @param {string} [domain="sqtg"] - The namespace for the tag (default: "sqtg").
  * @returns {Promise<Object>} The engine's event response containing the event ID.
  * @throws {Error} If ruleset installation or tag registration fails.
  */
-async function setSquareTag(eci, tagId, domain = "sqtg") {
+async function setSquareTag(thingName, tagId, domain = "sqtg") {
   try {
+    // Get eci of Thing pico
+    const manifoldEci = await traverseHierarchy();
+    const thingEci = await getChildEciByName(manifoldEci, thingName);
+
     const rid = "io.picolabs.safeandmine";
-    const isInstalled = await picoHasRuleset(eci, rid);
+    const isInstalled = await picoHasRuleset(thingEci, rid);
 
     if (!isInstalled) {
       console.log("Installing safeandmine...");
@@ -134,14 +145,14 @@ async function setSquareTag(eci, tagId, domain = "sqtg") {
         __dirname,
         `../../Manifold-api/${rid}.krl`,
       );
-      await installRuleset(eci, pathToFileURL(absolutePath).href);
+      await installRuleset(thingEci, pathToFileURL(absolutePath).href);
       await new Promise((r) => setTimeout(r, 1000)); // Give KRL time to init
     }
 
-    const manifoldECI = await getECIByTag(eci, "manifold");
+    const thingManifoldChannel = await getECIByTag(thingEci, "manifold");
 
     const response = await fetch(
-      `http://127.0.0.1:3000/c/${manifoldECI}/event/safeandmine/new_tag`,
+      `http://127.0.0.1:3000/c/${thingManifoldChannel}/event/safeandmine/new_tag`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
