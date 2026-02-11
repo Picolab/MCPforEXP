@@ -99,7 +99,7 @@ test("create thing and add tags with unique identifiers", async () => {
     expect(thingEci).toBeDefined();
     console.log(`${randomName} ECI is:`, thingEci);
 
-    const addedTag = await setSquareTag(thingEci, randomTag);
+    const addedTag = await setSquareTag(randomName, randomTag);
 
     expect(addedTag).toBeDefined();
     console.log("Added tag result:", addedTag);
