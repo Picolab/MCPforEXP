@@ -26,7 +26,7 @@ const {
   installOwner,
   getECIByTag,
   getChildEciByName,
-  installRuleset
+  installRuleset,
 } = require("../backend/utility.js");
 const {
   manifold_getThings,
@@ -65,9 +65,9 @@ async function main() {
 
   server.tool(
     "manifold_getThings",
-    "KRL query: io.picolabs.manifold_pico/getThings",
-    { ...base },
-    toolHandler(({ eci, id }) => manifold_getThings(eci, id)),
+    "List all digital things managed by Manifold. No arguments required.",
+    { id: z.string().optional() },
+    toolHandler(({ id }) => manifold_getThings(id)),
   );
 
   server.tool(
@@ -79,43 +79,52 @@ async function main() {
 
   server.tool(
     "manifold_create_thing",
-    "KRL event: manifold/create_thing (attrs: name)",
-    { ...base, name: z.string() },
-    toolHandler(({ eci, name, id }) => manifold_create_thing(eci, name, id)),
+    "Create a new digital thing Pico. Provide a descriptive name.",
+    {
+      name: z.string().describe("Descriptive name (e.g. 'Backpack')"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ name, id }) => manifold_create_thing(name, id)),
   );
 
   server.tool(
     "manifold_remove_thing",
     "KRL event: manifold/remove_thing (attrs: picoID)",
-  { ...base, picoID: z.string() },
-    toolHandler(({ eci, picoID, id }) => manifold_remove_thing(eci, picoID, id)),
+    { ...base, picoID: z.string() },
+    toolHandler(({ eci, picoID, id }) =>
+      manifold_remove_thing(eci, picoID, id),
+    ),
   );
 
   server.tool(
     "manifold_change_thing_name",
     "KRL event: manifold/change_thing_name (attrs: picoID, changedName)",
-  { ...base, picoID: z.string(), changedName: z.string() },
-    toolHandler(({ eci, picoID, changedName, id }) => manifold_change_thing_name(eci, picoID, changedName, id)),
+    { ...base, picoID: z.string(), changedName: z.string() },
+    toolHandler(({ eci, picoID, changedName, id }) =>
+      manifold_change_thing_name(eci, picoID, changedName, id),
+    ),
   );
 
   server.tool(
     "safeandmine_getInformation",
     "KRL query: io.picolabs.safeandmine/getInformation (optional arg: info)",
-  { ...base, info: z.string().optional() },
-    toolHandler(({ eci, info, id }) => safeandmine_getInformation(eci, info, id)),
+    { ...base, info: z.string().optional() },
+    toolHandler(({ eci, info, id }) =>
+      safeandmine_getInformation(eci, info, id),
+    ),
   );
 
   server.tool(
     "safeandmine_getTags",
     "KRL query: io.picolabs.safeandmine/getTags",
-  { ...base },
+    { ...base },
     toolHandler(({ eci, id }) => safeandmine_getTags(eci, id)),
   );
 
   server.tool(
     "safeandmine_update",
     "KRL event: safeandmine/update (attrs: name,email,phone,message,shareName,shareEmail,sharePhone)",
-  {
+    {
       ...base,
       name: z.string().optional(),
       email: z.string().optional(),
@@ -125,30 +134,53 @@ async function main() {
       shareEmail: z.boolean().optional(),
       sharePhone: z.boolean().optional(),
     },
-    toolHandler(({ eci, id, name, email, phone, message, shareName, shareEmail, sharePhone }) =>
-      safeandmine_update(eci, { name, email, phone, message, shareName, shareEmail, sharePhone }, id),
+    toolHandler(
+      ({
+        eci,
+        id,
+        name,
+        email,
+        phone,
+        message,
+        shareName,
+        shareEmail,
+        sharePhone,
+      }) =>
+        safeandmine_update(
+          eci,
+          { name, email, phone, message, shareName, shareEmail, sharePhone },
+          id,
+        ),
     ),
   );
 
   server.tool(
     "safeandmine_delete",
     "KRL event: safeandmine/delete (optional attr: toDelete). If omitted clears all stored info.",
-  { ...base, toDelete: z.string().optional() },
-    toolHandler(({ eci, toDelete, id }) => safeandmine_delete(eci, toDelete, id)),
+    { ...base, toDelete: z.string().optional() },
+    toolHandler(({ eci, toDelete, id }) =>
+      safeandmine_delete(eci, toDelete, id),
+    ),
   );
 
   server.tool(
     "safeandmine_newtag",
-    "KRL event: safeandmine/new_tag (attrs: tagID, domain)",
-  { ...base, tagID: z.string(), domain: z.string() },
-    toolHandler(({ eci, tagID, domain, id }) => safeandmine_newtag(eci, tagID, domain, id)),
+    "Assign a physical SquareTag to a named Pico.",
+    {
+      thingName: z.string().describe("The name of the Pico to tag"),
+      tagID: z.string().describe("The alphanumeric tag ID"),
+      domain: z.string().default("sqtg"),
+    },
+    toolHandler(({ thingName, tagID, domain, id }) =>
+      safeandmine_newtag(thingName, tagID, domain, id),
+    ),
   );
 
   // Additional utility tools
   server.tool(
     "getRootECI",
     "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
-  {},
+    {},
     toolHandler(async () => {
       const eci = await getRootECI();
       return { rootEci: eci };
@@ -158,7 +190,10 @@ async function main() {
   server.tool(
     "getChildEciByName",
     "Find the ECI of a child pico by name. Queries a parent pico to find a child pico with a specific name.",
-  { parentEci: z.string().describe("Parent pico ECI"), childName: z.string().describe("Name of the child pico to find") },
+    {
+      parentEci: z.string().describe("Parent pico ECI"),
+      childName: z.string().describe("Name of the child pico to find"),
+    },
     toolHandler(async ({ parentEci, childName }) => {
       const eci = await getChildEciByName(parentEci, childName);
       return { eci: eci || null };
@@ -168,7 +203,7 @@ async function main() {
   server.tool(
     "getInitializationECI",
     "Get the initialization channel ECI from an owner pico. This channel has proper permissions for querying manifold_owner.",
-  { ownerEci: z.string().describe("Owner pico ECI") },
+    { ownerEci: z.string().describe("Owner pico ECI") },
     toolHandler(async ({ ownerEci }) => {
       const eci = await getInitializationECI(ownerEci);
       return { eci: eci || null };
@@ -178,7 +213,7 @@ async function main() {
   server.tool(
     "getManifoldECI",
     "Get the manifold pico channel ECI (channel tagged 'manifold') from the owner pico. Requires owner initialization ECI.",
-  {
+    {
       ownerInitializationEci: z
         .string()
         .describe("Owner pico initialization ECI (from getInitializationECI)"),
@@ -192,7 +227,7 @@ async function main() {
   server.tool(
     "getECIByTag",
     "Get a channel ECI by tag from a pico. Searches all channels on the pico for one with the specified tag.",
-  {
+    {
       eci: z.string().describe("Pico ECI to search"),
       tag: z
         .string()
@@ -207,13 +242,19 @@ async function main() {
   server.tool(
     "installOwner",
     "Install the manifold_owner ruleset on the root pico (requires root ECI)",
-  { ...base },
+    { ...base },
     toolHandler(async ({ eci }) => {
       try {
         await installOwner(eci);
-        return { success: true, message: "manifold_owner ruleset installation initiated" };
+        return {
+          success: true,
+          message: "manifold_owner ruleset installation initiated",
+        };
       } catch (error) {
-        return { success: false, error: error.message || "Failed to install ruleset" };
+        return {
+          success: false,
+          error: error.message || "Failed to install ruleset",
+        };
       }
     }),
   );
@@ -221,13 +262,21 @@ async function main() {
   server.tool(
     "installRuleset",
     "Install a KRL ruleset on a pico via file:// URL",
-  { ...base, filePath: z.string().describe("File URL (e.g., file:///path/to/ruleset.krl)") },
+    {
+      ...base,
+      filePath: z
+        .string()
+        .describe("File URL (e.g., file:///path/to/ruleset.krl)"),
+    },
     toolHandler(async ({ eci, filePath }) => {
       try {
         await installRuleset(eci, filePath);
         return { success: true, message: "Ruleset installation initiated" };
       } catch (error) {
-        return { success: false, error: error.message || "Failed to install ruleset" };
+        return {
+          success: false,
+          error: error.message || "Failed to install ruleset",
+        };
       }
     }),
   );
