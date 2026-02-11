@@ -1,5 +1,6 @@
 const { callKrl } = require("./krl-client");
-const { createThing } = require("./api-wrapper");
+const api = require("./api-wrapper");
+const { normalizeId, okResponse, errResponse } = require("./krl-json");
 
 /**
  * Uniform KRL operations (events/queries) for MCP integration.
@@ -12,17 +13,20 @@ const { createThing } = require("./api-wrapper");
 /**
  * Retrieves all "Things" currently managed by the Manifold Pico.
  * @async
- * @param {string} eci - The ECI of the Manifold Pico.
  * @param {string|number} id - Correlation ID for the request.
  * @returns {Promise<KrlResponse>} Standard envelope containing the map of things.
  */
-async function manifold_getThings(eci, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "query", rid: "io.picolabs.manifold_pico", name: "getThings" },
-    args: {},
-  });
+async function manifold_getThings(id) {
+  try {
+    const data = await api.listThings();
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "query", domain: "manifold" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
 }
 
 /**
@@ -50,35 +54,16 @@ async function manifold_isAChild(eci, picoID, id) {
  * Uses createThing internally which waits for completion and returns the thing's ECI.
  * Returns uniform envelope format: { id, ok, data: { thingEci }, error?, meta }
  */
-async function manifold_create_thing(eci, name, id) {
-  const { normalizeId, okResponse, errResponse } = require("./krl-json");
-
+async function manifold_create_thing(name, id) {
   try {
-    const thingEci = await createThing(eci, name);
+    const thingEci = await api.createThing(name);
     return okResponse({
-      id: normalizeId(id),
+      id,
       data: { thingEci },
-      meta: {
-        kind: "event",
-        eci,
-        domain: "manifold",
-        type: "create_thing",
-        httpStatus: 200,
-      },
+      meta: { kind: "event", type: "create_thing", httpStatus: 200 },
     });
   } catch (error) {
-    return errResponse({
-      id: normalizeId(id),
-      code: "NETWORK_ERROR",
-      message: error.message || "Failed to create thing",
-      details: { error: error.message },
-      meta: {
-        kind: "event",
-        eci,
-        domain: "manifold",
-        type: "create_thing",
-      },
-    });
+    return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
   }
 }
 
@@ -217,18 +202,22 @@ async function safeandmine_delete(eci, toDelete, id) {
 /**
  * Registers a new SquareTag to the Thing Pico and the global registry.
  * @async
- * @param {string} eci - The ECI of the Thing Pico.
+ * @param {string} thingName - The name of the Thing Pico.
  * @param {string} tagID - The unique ID of the tag.
  * @param {string} domain - The namespace for the tag (e.g., 'sqtg').
  * @param {string|number} id - Correlation ID.
  */
-async function safeandmine_newtag(eci, tagID, domain, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "safeandmine", type: "new_tag" },
-    args: { tagID, domain },
-  });
+async function safeandmine_newtag(thingName, tagID, domain, id) {
+  try {
+    const data = await api.setSquareTag(thingName, tagID, domain);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "event", domain: "safeandmine" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "INSTALL_ERROR", message: error.message });
+  }
 }
 
 module.exports = {
