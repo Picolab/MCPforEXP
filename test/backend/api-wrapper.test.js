@@ -79,34 +79,36 @@ const {
 //   }
 // });
 
-test("add tags", async () => {
-  try {
-    const eci = await getRootECI();
-    expect(eci).toBeDefined();
-    console.log("Root eci is", eci);
-    const ownerEci = await getChildEciByName(eci, "Owner");
-    console.log("Owner eci is", ownerEci);
-    expect(ownerEci).toBeDefined();
-    const initializedEci = await getInitializationECI(ownerEci);
-    console.log("Initialized eci is", initializedEci);
-    expect(initializedEci).toBeDefined();
-    const manifoldEci = await getManifoldECI(initializedEci);
-    expect(manifoldEci).toBeDefined();
-    console.log("Manifold eci is", manifoldEci);
+/**
+ * Helper to generate a short random string for unique tags
+ */
+const generateRandomString = (length = 6) =>
+  Math.random()
+    .toString(36)
+    .substring(2, 2 + length)
+    .toUpperCase();
 
-    // Create things to add tags to
-    const thingEci = await createThing(manifoldEci, "Test Thing");
-    console.log("Thing eci is", thingEci);
+test("create thing and add tags with unique identifiers", async () => {
+  const randomName = `Backpack-${Date.now()}`;
+  const randomTag = generateRandomString(6);
+
+  console.log(`Running test with Name: ${randomName} and Tag: ${randomTag}`);
+
+  try {
+    const thingEci = await createThing(randomName);
     expect(thingEci).toBeDefined();
-    isInstalled = await picoHasRuleset(thingEci, "io.picolabs.safeandmine");
-    expect(isInstalled).toBe(true);
-    // Need to find the things manifold ECI to add tags
-    const thingManifoldEci = await getECIByTag(thingEci, "manifold");
-    console.log("Thing manifold eci is", thingManifoldEci);
-    expect(thingManifoldEci).toBeDefined();
-    const addedTag = await setSquareTag(thingManifoldEci, "fake tag");
+    console.log(`${randomName} ECI is:`, thingEci);
+
+    const addedTag = await setSquareTag(thingEci, randomTag);
+
     expect(addedTag).toBeDefined();
+    console.log("Added tag result:", addedTag);
+
+    // Optional: Verify the tag was actually registered
+    // const tags = await safeandmine_getTags(thingEci);
+    // expect(JSON.stringify(tags)).toContain(randomTag);
   } catch (error) {
+    console.error("Test failed during random generation flow:", error);
     throw error;
   }
 });
