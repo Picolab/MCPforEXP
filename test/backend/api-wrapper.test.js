@@ -3,6 +3,7 @@ const {
   scanTag,
   listThings,
   createThing,
+  updateOwnerInfo,
 } = require("../../src/backend/api-wrapper");
 const {
   getRootECI,
@@ -130,3 +131,58 @@ test("create thing and add tags with unique identifiers", async () => {
 //     throw error;
 //   }
 // });
+
+test("create thing, add owner info, update it, and view it", async () => {
+  const randomName = `Suitcase-${Date.now()}`;
+  try {
+    const thingEci = await createThing(randomName);
+    expect(thingEci).toBeDefined();
+    const validChannel = await getECIByTag(thingEci, "manifold");
+
+    const initialOwnerInfo = {
+      name: "test",
+      email: "test",
+      phone: "test",
+      message: "test",
+      shareName: true,
+      shareEmail: true,
+      sharePhone: true,
+    };
+    const firstUpdateResponse = await updateOwnerInfo(
+      randomName,
+      initialOwnerInfo,
+    );
+    expect(firstUpdateResponse.eid).toBeDefined();
+
+    const secondUpdateResponse = await updateOwnerInfo(randomName, {
+      name: "UPDATED",
+      sharePhone: false,
+    });
+    expect(secondUpdateResponse.eid).toBeDefined();
+
+    const getInfoResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+
+    const returnedOwnerInfo = await getInfoResponse.json();
+    const expectedOwnerInfo = {
+      name: "UPDATED",
+      email: "test",
+      phone: "test",
+      message: "test",
+      shareName: true,
+      shareEmail: true,
+      sharePhone: false,
+    };
+
+    expect(returnedOwnerInfo).toEqual(expectedOwnerInfo);
+  } catch (error) {
+    console.error("Test failed during random generation flow:", error);
+    throw error;
+  }
+});

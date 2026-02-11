@@ -308,6 +308,15 @@ async function picoHasRuleset(picoEci, rid) {
   }
 }
 
+async function traverseHierarchy() {
+  const rootECI = await getRootECI();
+  const ownerECI = await getChildEciByName(rootECI, "Owner");
+  const ownerInitializationECI = await getInitializationECI(ownerECI);
+  const manifoldECI = await getManifoldECI(ownerInitializationECI);
+  const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
+  return manifoldChannel;
+}
+
 module.exports = {
   getRootECI,
   getInitializationECI,
@@ -317,4 +326,5 @@ module.exports = {
   setupRegistry,
   getECIByTag,
   getChildEciByName,
+  traverseHierarchy,
 };

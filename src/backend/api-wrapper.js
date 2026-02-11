@@ -2,11 +2,10 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const {
   getRootECI,
-  getInitializationECI,
-  getManifoldECI,
   picoHasRuleset,
   getECIByTag,
   getChildEciByName,
+  traverseHierarchy,
 } = require("./utility.js");
 
 async function main() {
@@ -15,15 +14,6 @@ async function main() {
 
 if (require.main === module) {
   main();
-}
-
-async function traverseHierarchy() {
-  const rootECI = await getRootECI();
-  const ownerECI = await getChildEciByName(rootECI, "Owner");
-  const ownerInitializationECI = await getInitializationECI(ownerECI);
-  const manifoldECI = await getManifoldECI(ownerInitializationECI);
-  const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
-  return manifoldChannel;
 }
 
 /**
@@ -222,6 +212,86 @@ async function scanTag(tagId, domain = "sqtg") {
   }
 }
 
+/**
+ * Updates a thing's owner info from an object that defines which attributes should be updated
+ *
+ * @param {string} thingName
+ * @param {object} ownerInfo
+ * {
+ *  name?: string,
+ *  email?: string,
+ *  phone?: string,
+ *  message?: string,
+ *  shareName?: bool,
+ *  sharePhone?: bool,
+ *  shareEmail?: bool
+ * }
+ *
+ * @returns {Promise<Object>} The engine's event response containing the event ID.
+ * @throws {Error} If info query or update fails.
+ */
+async function updateOwnerInfo(thingName, ownerInfo) {
+  try {
+    const manifoldEci = await traverseHierarchy();
+    const thingEci = await getChildEciByName(manifoldEci, thingName);
+    const validChannel = await getECIByTag(thingEci, "manifold");
+
+    const infoResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+    let currentOwnerInfo = await infoResponse.json();
+
+    if (Object.keys(currentOwnerInfo) == 0) {
+      currentOwnerInfo = {
+        name: "",
+        email: "",
+        phone: "",
+        message: "",
+        shareName: false,
+        sharePhone: false,
+        shareEmail: false,
+      };
+      const initializeResponse = await fetch(
+        `http://localhost:3000/c/${validChannel}/event-wait/safeandmine/update`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentOwnerInfo),
+        },
+      );
+    }
+
+    // Loop through info attributes. Anything that is not defined by ownerInfo is not being updated and should retain its current value.
+    let newOwnerInfo = {};
+    for (const [key] of Object.entries(currentOwnerInfo)) {
+      if (ownerInfo[key] === undefined) {
+        newOwnerInfo[key] = currentOwnerInfo[key];
+      } else {
+        newOwnerInfo[key] = ownerInfo[key];
+      }
+    }
+
+    const updateResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/event-wait/safeandmine/update`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newOwnerInfo),
+      },
+    );
+
+    const updateData = await updateResponse.json();
+    return updateData;
+  } catch (err) {
+    console.error("updateOwnerInfo error: ", err);
+  }
+}
+
 module.exports = {
   main,
   listThings,
@@ -229,4 +299,5 @@ module.exports = {
   addNote,
   setSquareTag,
   scanTag,
+  updateOwnerInfo,
 };
