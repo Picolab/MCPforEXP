@@ -89,11 +89,9 @@ async function main() {
 
   server.tool(
     "manifold_remove_thing",
-    "KRL event: manifold/remove_thing (attrs: picoID)",
-    { ...base, picoID: z.string() },
-    toolHandler(({ eci, picoID, id }) =>
-      manifold_remove_thing(eci, picoID, id),
-    ),
+    "KRL event: manifold/remove_thing (attrs: thingName)",
+    { thingName: z.string(), id: z.string().optional() },
+    toolHandler(({ thingName, id }) => manifold_remove_thing(thingName, id)),
   );
 
   server.tool(

@@ -70,18 +70,21 @@ async function manifold_create_thing(name, id) {
 /**
  * Removes a Thing Pico and its associated subscriptions from Manifold.
  * @async
- * @param {string} eci - The ECI of the Manifold Pico.
- * @param {string} picoID - The ID of the Thing Pico to remove.
+ * @param {string} thingName - The name of the Thing Pico to remove.
  * @param {string|number} id - Correlation ID.
  * @returns {Promise<KrlResponse>} Standard KRL envelope.
  */
-async function manifold_remove_thing(eci, picoID, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "manifold", type: "remove_thing" },
-    args: { picoID },
-  });
+async function manifold_remove_thing(thingName, id) {
+  try {
+    const thingEci = await api.deleteThing(thingName);
+    return okResponse({
+      id,
+      data: { thingEci },
+      meta: { kind: "event", type: "remove_thing", httpStatus: 200 },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
+  }
 }
 
 /**

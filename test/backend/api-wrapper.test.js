@@ -4,6 +4,7 @@ const {
   listThings,
   createThing,
   updateOwnerInfo,
+  deleteThing,
 } = require("../../src/backend/api-wrapper");
 const {
   getRootECI,
@@ -181,6 +182,22 @@ test("create thing, add owner info, update it, and view it", async () => {
     };
 
     expect(returnedOwnerInfo).toEqual(expectedOwnerInfo);
+  } catch (error) {
+    console.error("Test failed during random generation flow:", error);
+    throw error;
+  }
+});
+
+test("create and delete thing", async () => {
+  const randomName = `Wallet-${Date.now()}`;
+  try {
+    const thingEci = await createThing(randomName);
+    expect(thingEci).toBeDefined();
+    console.log(`${randomName} ECI is:`, thingEci);
+
+    const deleteResponse = await deleteThing(randomName);
+    expect(deleteResponse).toBeDefined();
+    console.log(`${randomName} deletion response:`, deleteResponse);
   } catch (error) {
     console.error("Test failed during random generation flow:", error);
     throw error;

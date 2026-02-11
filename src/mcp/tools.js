@@ -138,12 +138,12 @@ const manifold_create_thing = tool({
 
 const manifold_remove_thing = tool({
   name: "manifold_remove_thing",
-  description: "KRL event: manifold/remove_thing (attrs: picoID)",
+  description: "KRL event: manifold/remove_thing (attrs: thingName)",
   properties: {
     ...TOOL_COMMON_PROPS,
-    picoID: { type: "string", description: "Thing pico id to remove." },
+    thingName: { type: "string", description: "Thing pico name to remove." },
   },
-  required: ["eci", "picoID"],
+  required: ["thingName"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
@@ -169,10 +169,15 @@ const safeandmine_getInformation = tool({
     "KRL query: io.picolabs.safeandmine/getInformation (optional arg: info)",
   properties: {
     ...TOOL_COMMON_PROPS,
-    info: { type: "string", description: "Optional field name to fetch (name/email/phone/message). If omitted returns the whole map." },
+    info: {
+      type: "string",
+      description:
+        "Optional field name to fetch (name/email/phone/message). If omitted returns the whole map.",
+    },
   },
   required: ["eci"],
-  outputDescription: "Returns contact info map (name, email, phone, message) or single field value if info param provided",
+  outputDescription:
+    "Returns contact info map (name, email, phone, message) or single field value if info param provided",
 });
 
 const safeandmine_getTags = tool({

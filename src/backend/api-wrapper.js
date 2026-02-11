@@ -106,6 +106,42 @@ async function createThing(thingName) {
   }
 }
 
+/**
+ * Deletes a Thing Pico by name. Uses the same event as manifold_remove_thing, but with an event-wait pattern to ensure completion before returning.
+ * @async
+ * @function deleteThing
+ * @param {string} thingName - The name of the Thing Pico to delete.
+ * @returns {Promise<Object>} The engine's event response.
+ * @throws {Error} If the timeout (10s) is reached before the Pico is removed from the engine.
+ */
+async function deleteThing(thingName) {
+  const manifoldEci = await traverseHierarchy();
+  const thingEci = await getChildEciByName(manifoldEci, thingName);
+  if (!thingEci) throw new Error(`Thing "${thingName}" not found.`);
+  // Use your manifold domain to ensure KRL cleanup happens!
+  const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/remove_thing`;
+
+  try {
+    const thingPicoId = await fetch(`
+http://localhost:3000/c/${thingEci}/query/io.picolabs.wrangler/myself`);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID: thingPicoId }), // Make sure this is the ID, not an ECI
+    });
+
+    if (!response.ok) throw new Error(`HTTP Error (${response.status})`);
+
+    const data = await response.json();
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.error(`Error in deleteThing:`, error.message);
+    throw error;
+  }
+}
+
 // addNote(eci, title, content)
 async function addNote(eci, title, content) {}
 
@@ -293,4 +329,5 @@ module.exports = {
   setSquareTag,
   scanTag,
   updateOwnerInfo,
+  deleteThing,
 };
