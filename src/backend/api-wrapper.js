@@ -246,6 +246,7 @@ async function updateOwnerInfo(thingName, ownerInfo) {
     );
     let currentOwnerInfo = await infoResponse.json();
 
+    // Accounts for case of object not having any owner info yet
     if (Object.keys(currentOwnerInfo) == 0) {
       currentOwnerInfo = {
         name: "",
@@ -256,14 +257,6 @@ async function updateOwnerInfo(thingName, ownerInfo) {
         sharePhone: false,
         shareEmail: false,
       };
-      const initializeResponse = await fetch(
-        `http://localhost:3000/c/${validChannel}/event-wait/safeandmine/update`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(currentOwnerInfo),
-        },
-      );
     }
 
     // Loop through info attributes. Anything that is not defined by ownerInfo is not being updated and should retain its current value.
