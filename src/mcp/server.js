@@ -176,8 +176,6 @@ async function main() {
     ),
   );
 
-  );
-
   // Additional utility tools
   server.tool(
     "getRootECI",
