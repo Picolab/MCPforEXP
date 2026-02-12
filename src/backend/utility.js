@@ -13,12 +13,12 @@ require("dotenv").config();
  */
 async function getRootECI() {
   try {
-    const requestEndpoint = "api/ui-context";
-    const requestBody = {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    };
-    const data = await sendAPICall(requestEndpoint, requestBody);
+    const requestEndpoint = "/api/ui-context";
+    console.log("BEFORE SEND API CALL IN ROOT ECI");
+    const response = await sendAPICall(requestEndpoint, true, {});
+    console.log("AfTER SENDAPI call in GETROOTECI");
+    const data = await response.json();
+    await checkError(data);
     return data.eci;
   } catch (error) {
     console.error("Fetch error:", error);
@@ -136,7 +136,7 @@ async function getChildEciByName(parentEci, childName) {
           headers: { "Content-Type": "application/json" },
         };
 
-        const actualName = sendAPICall(requestEndpoint, requestBody);
+        const actualName = await sendAPICall(requestEndpoint, requestBody);
 
         if (nameResp.ok) {
           if (actualName === childName) {
@@ -315,6 +315,7 @@ async function checkENVVariable(variable, variableName) {
 
 /**
  * @param {*} requestURL - Should be the pico url starting with /c/...
+ * @param {*} simpleRequest - Bool value that signifies if the request has a request body.
  * @param {*} body - The request body included with the fetch call.
  * @returns - The response body JSON
  *
@@ -324,33 +325,49 @@ async function checkENVVariable(variable, variableName) {
  * It then checks for errors and returns the response if no error.
  *
  */
-async function sendAPICall(requestEndpoint, body) {
-  try {
-    const baseURL = await checkENVVariable(process.env.PICO_ENGINE_BASE_URL);
-    const requestURL = baseURL + requestEndpoint;
-    console.log("RequestURL: ", requestURL);
-    const fetchResponse = await fetch(requestURL, {
-      method: body.method,
-      headers: body.headers,
-    });
-    // parse the JSON request body
-    const responseData = await fetchResponse.json();
+async function sendAPICall(requestEndpoint, simpleRequest, requestBody) {
+  const baseURL = await checkENVVariable(process.env.PICO_ENGINE_BASE_URL, "PICO_ENGINE_BASE_URL");
+  const requestURL = baseURL + requestEndpoint;
+  console.log("RequestURL: ", requestURL);
 
-    console.log("ResponseData: ", responseData);
+  let response = null;
 
-    // Check for errors:
-    // Since we aren't worrying about auth we can log both the request endpoing and the body.
-    if ("error" in responseData) {
-      throw new Error(
-        `There was an error when calling ${requestURL} with the body ${JSON.stringify(body)} and the message returned: ${responseData}`,
-      );
+  // try the simple request
+  if (simpleRequest) {
+    try {
+      console.log("SIMPLE REQUEST");
+      response = await fetch(requestURL);
+      if (!response.ok) {
+        throw new Error(`${response.status}`);
+      }
+    } catch (err) {
+      console.log("Simple request failed: ", err);
     }
+  } else {
+    try {
+      response = await fetch(requestURL, {
+      method: requestBody.method,
+      headers: requestBody.headers
+    });
+    if (!response.ok) {
+        throw new Error(`${response.status}`);
+      }
+    } catch (err)  {
+      console.log("Request with body failed: ", err);
+    }
+  }
 
-    return responseData;
-  } catch (err) {
-    throw new Error(err);
+  return response;
+}
+
+
+async function checkError(data) {
+  if (error in data) {
+    throw new Error(`Error from ${requestURL}: ${JSON.stringify(data)}`);
   }
 }
+
+
 
 module.exports = {
   getRootECI,

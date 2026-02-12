@@ -1,17 +1,25 @@
 const { main, createThing } = require("../../src/backend/api-wrapper");
-const { getChildEciByName } = require("../../src/backend/utility");
+const { getChildEciByName, sendAPICall } = require("../../src/backend/utility");
 
 let manifoldECI = "";
 
 beforeAll(async () => {
+  try {
+    const response = await sendAPICall("/docs", true, {});
+    console.log("DATA HIT: ", response);
+  } catch (error) {
+    await new Promise(r => setTimeout(r, 500));
+    console.log(error);
+  }
+  console.log("Started before all");
   manifoldECI = await main();
   console.log("MANIFOLD ECI: ", manifoldECI);
   await createThing(manifoldECI, "Blue Travel Case");
+  console.log("Ended before all");
 }, 60000);
 
 describe("Integration Test: createThing", () => {
   test("successfully creates a new Thing Pico", async () => {
-    const manifoldECI = await main();
     const thingName = "Red Travel Case";
 
     // Call the real createThing

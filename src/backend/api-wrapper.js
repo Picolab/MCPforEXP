@@ -226,9 +226,9 @@ async function setSquareTag(eci, tagId, domain = "sqtg") {
  */
 async function scanTag(tagId, domain = "sqtg") {
   try {
-    const rootECI = getRootECI();
-    const tagRegistryECI = getChildEciByName(rootECI, "Tag Registry");
-    const registrationECI = getECIByTag(tagRegistryECI, "registration");
+    const rootECI = await getRootECI();
+    const tagRegistryECI = await getChildEciByName(rootECI, "Tag Registry");
+    const registrationECI = await getECIByTag(tagRegistryECI, "registration");
 
     const requestEndpoint = `/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`;
     const requestBody = {
