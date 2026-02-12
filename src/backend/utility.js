@@ -1,4 +1,3 @@
-const { request } = require("http");
 const path = require("path");
 const { pathToFileURL } = require("url");
 
@@ -14,13 +13,12 @@ require("dotenv").config();
  */
 async function getRootECI() {
   try {
-    const response = await fetch(`http://localhost:3000/api/ui-context`);
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
+    const requestEndpoint = "api/ui-context";
+    const requestBody = {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    };
+    const data = await sendAPICall(requestEndpoint, requestBody);
     return data.eci;
   } catch (error) {
     console.error("Fetch error:", error);
@@ -65,18 +63,16 @@ async function setupRegistry() {
         }
       }
 
-      if (bootstrapEci) {
-        const resp = await fetch(
-          `http://127.0.0.1:3000/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`,
-        );
+      requestEndpoint = `/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`;
+      requestBody = {
+        method: "GET",
+        headers: { "Content-Type": "application-json" },
+      };
 
-        if (resp.ok) {
-          const status = await resp.json();
-          if (status && status.owner_eci) {
-            console.log("\n Bootstrap Complete.");
-            return status;
-          }
-        }
+      const status = await sendAPICall(requestEndpoint, requestBody);
+      if (status && status.owner_eci) {
+        console.log("\n Bootstrap Complete.");
+        return status;
       }
     } catch (error) {
       // Let it silently retry
@@ -122,22 +118,27 @@ async function getInitializationECI(owner_eci) {
  */
 async function getChildEciByName(parentEci, childName) {
   try {
-    const url = `http://127.0.0.1:3000/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
-    const response = await fetch(url);
-    if (!response.ok)
-      throw new Error(`Failed to query parent: ${response.status}`);
+    const parentRequestEndpoint = `/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
+    const parentRequestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    };
 
-    const data = await response.json();
+    const data = await sendAPICall(parentRequestEndpoint, parentRequestBody);
     const childEcis = data.children || [];
 
     // We must query each child individually to find the one with the matching name
     for (const childEci of childEcis) {
       try {
-        const nameUrl = `http://127.0.0.1:3000/c/${childEci}/query/io.picolabs.pico-engine-ui/name`;
-        const nameResp = await fetch(nameUrl);
+        const requestEndpoint = `/c/${childEci}/query/io.picolabs.pico-engine-ui/name`;
+        const requestBody = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        };
+
+        const actualName = sendAPICall(requestEndpoint, requestBody);
 
         if (nameResp.ok) {
-          const actualName = await nameResp.json();
           if (actualName === childName) {
             return childEci; // Match found!
           }
@@ -170,15 +171,13 @@ async function getChildEciByName(parentEci, childName) {
  */
 async function getECIByTag(owner_eci, tag) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
-    );
+    const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`;
+    const requestBody = {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    };
 
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await sendAPICall(requestEndpoint, requestBody);
     const channels = data.channels;
 
     for (let channel of channels) {
@@ -201,19 +200,13 @@ async function getECIByTag(owner_eci, tag) {
  */
 async function getManifoldECI(owner_eci) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`;
+    const requestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    };
 
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await sendAPICall(requestEndpoint, requestBody);
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
@@ -234,19 +227,14 @@ async function installRuleset(eci, filePath) {
     const rid = filePath.split("/").at(-1).replace(".krl", "");
     if (await picoHasRuleset(eci, rid)) return;
 
-    const response = await fetch(
-      `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
-      },
-    );
+    const requestEndpoint = `/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`;
+    const requestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
+    };
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
+    const data = await sendAPICall(requestEndpoint, requestBody);
   } catch (error) {
     console.error("Fetch error:", error);
   }
@@ -290,17 +278,12 @@ async function installOwner(eci) {
  */
 async function picoHasRuleset(picoEci, rid) {
   try {
-    const resp = await fetch(
-      `http://localhost:3000/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`,
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-
-    if (!resp.ok) return false;
-
-    const data = await resp.json();
-
+    const requestEndpoint = `/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`;
+    const requestBody = {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    };
+    const data = await sendAPICall(requestEndpoint, requestBody);
     for (const ruleset of data.rulesets) {
       if (ruleset.rid === rid) return true;
     }
@@ -346,7 +329,10 @@ async function sendAPICall(requestEndpoint, body) {
     const baseURL = await checkENVVariable(process.env.PICO_ENGINE_BASE_URL);
     const requestURL = baseURL + requestEndpoint;
     console.log("RequestURL: ", requestURL);
-    const fetchResponse = await fetch(requestURL, body);
+    const fetchResponse = await fetch(requestURL, {
+      method: body.method,
+      headers: body.headers,
+    });
     // parse the JSON request body
     const responseData = await fetchResponse.json();
 
@@ -356,7 +342,7 @@ async function sendAPICall(requestEndpoint, body) {
     // Since we aren't worrying about auth we can log both the request endpoing and the body.
     if ("error" in responseData) {
       throw new Error(
-        `There was an error when calling ${requestURL} with the body ${body} and the message returned: ${responseData}`,
+        `There was an error when calling ${requestURL} with the body ${JSON.stringify(body)} and the message returned: ${responseData}`,
       );
     }
 

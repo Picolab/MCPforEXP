@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  pico:
+    build:
+      context: .
+      dockerfile: Dockerfile.pico
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/docs"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    depends_on:
+      pico:
+        condition: service_healthy
+    environment:
+      PICO_ENGINE_BASE_URL: http://pico:3000

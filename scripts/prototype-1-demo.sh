@@ -17,7 +17,10 @@ THING_ENGINE_ECI=$(node -e "require('../src/backend/api-wrapper.js').createThing
 echo Blue Travel Case ECI: $THING_ENGINE_ECI
 
 echo "Attaching a note"
-echo "NOT IMPLEMENTED"
+echo -e "require('../src/backend/api-wrapper.js').addNote('$THING_ENGINE_ECI', 'Dear Diary', 'I wish I hadn't fallen in love. But I can't help it.')"
+
+echo "Getting the note"
+echo -e "require('../src/backend/api-wrapper.js').getNote('$THING_ENGINE_ECI', 'Dear Diary')"
 
 echo "Setting SquareTag 'AAABBB'"
 node -e "require('../src/backend/api-wrapper.js').setSquareTag('$THING_ENGINE_ECI', 'AAABBB')"

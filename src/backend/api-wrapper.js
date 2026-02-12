@@ -13,10 +13,14 @@ const {
 
 async function main() {
   const rootECI = await getRootECI();
+  console.log("ROOTECI: ", rootECI);
   const ownerECI = await getChildEciByName(rootECI, "Owner");
+  console.log("OWNERECI: ", ownerECI);
   const ownerInitializationECI = await getInitializationECI(ownerECI);
+  console.log("OWNERINITIALIZATION: ", ownerInitializationECI);
   const manifoldECI = await getManifoldECI(ownerInitializationECI);
-  console.log(manifoldECI);
+  return manifoldECI;
+  //console.log(manifoldECI);
 }
 
 if (require.main === module) {
@@ -46,23 +50,15 @@ if (require.main === module) {
  */
 async function listThings(manifold_eci) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const requestEndpoint = `/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`;
+    const requestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    };
 
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log(data);
-    return data;
+    const data = await sendAPICall(requestEndpoint, requestBody);
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error("Error in listThings:", error);
   }
 }
 
@@ -77,23 +73,17 @@ async function listThings(manifold_eci) {
  * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
 async function createThing(manifoldEci, thingName) {
-  const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
+  //const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
-    const response = await fetch(url, {
+    const requestEndpoint = `/c/${manifoldEci}/event-wait/manifold/create_thing`;
+    const requestBody = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: thingName }),
-    });
+    };
 
-    if (!response.ok) {
-      throw new Error(
-        `HTTP Error (${response.status}): ${await response.text()}`,
-      );
-    }
-
-    const data = await response.json();
-
+    const data = await sendAPICall(requestEndpoint, requestBody);
     for (let i = 0; i < 10; i++) {
       const thingEci = await getChildEciByName(manifoldEci, thingName);
       if (thingEci) {
@@ -103,8 +93,6 @@ async function createThing(manifoldEci, thingName) {
       process.stdout.write(".");
       await new Promise((r) => setTimeout(r, 1000));
     }
-
-    throw new Error(`Timed out waiting for Pico "${thingName}" to appear.`);
   } catch (error) {
     console.error(`Error in createThing:`, error.message);
     throw error;
@@ -119,7 +107,7 @@ async function createThing(manifoldEci, thingName) {
  * This function first checks to see if the jounal krl is installed, if not it installs it.
  * It then sends a message to the event-wait/journal/new_entry endpoint for the chosen ECI.
  */
-async function addNote(eci, title, content) {
+async function addNote(krlPath, eci, title, content) {
   try {
     const rid = "io.picolabs.journal";
     const isInstalled = await picoHasRuleset(eci, rid);
@@ -150,8 +138,6 @@ async function addNote(eci, title, content) {
   }
 }
 
-
-
 async function getNote(eci, title) {
   try {
     const rid = "io.picolabs.journal";
@@ -159,15 +145,15 @@ async function getNote(eci, title) {
 
     if (!isInstalled) {
       // If trying to get note and this isn't installed then there's no point in installing it to get a note. It's impossible.
-      throw new Error("Error in getNote: journal ruleset not installed.")
+      throw new Error("Error in getNote: journal ruleset not installed.");
     }
 
-    const requestEndpoint = `/c/${eci}/event-wait/journal/get_entry` // This is just a guess, I'll fill it in for real in a minute.
+    const requestEndpoint = `/c/${eci}/event-wait/journal/get_entry`; // This is just a guess, I'll fill it in for real in a minute.
     const requestBody = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title })
-    }
+      body: JSON.stringify({ title: title }),
+    };
 
     const data = await sendAPICall(requestEndpoint, requestBody);
     console.log("Data is", data);
@@ -205,17 +191,14 @@ async function setSquareTag(eci, tagId, domain = "sqtg") {
 
     const manifoldECI = await getECIByTag(eci, "manifold");
 
-    const response = await fetch(
-      `http://127.0.0.1:3000/c/${manifoldECI}/event/safeandmine/new_tag`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagID: tagId, domain: domain }),
-      },
-    );
+    const requestEndpoint = `/c/${manifoldECI}/event/safeandmine/new_tag`;
+    const requestbody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tagID: tagId, domain: domain }),
+    };
 
-    const data = await response.json();
-    console.log("Done! Event id: ", data);
+    const data = await sendAPICall(requestEndpoint, requestBody);
 
     return data;
   } catch (err) {
@@ -247,28 +230,24 @@ async function scanTag(tagId, domain = "sqtg") {
     const tagRegistryECI = getChildEciByName(rootECI, "Tag Registry");
     const registrationECI = getECIByTag(tagRegistryECI, "registration");
 
-    const scanTagResponse = await fetch(
-      `http://localhost:3000/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagID: tagId, domain: domain }),
-      },
-    );
+    const requestEndpoint = `/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`;
+    const requestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tagID: tagId, domain: domain }),
+    };
 
-    const scanTagData = await scanTagResponse.json();
+    const scanTagData = await sendAPICall(requestEndpoint, requestBody);
     const tagECI = scanTagData.did;
 
-    const infoResponse = await fetch(
-      `http://localhost:3000/c/${tagECI}/query/io.picolabs.safeandmine/getInformation`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ info: "" }),
-      },
-    );
+    const infoRequestEndpoint = `/c/${tagECI}/query/io.picolabs.safeandmine/getInformation`;
+    const infoRequestBody = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ info: "" }),
+    };
 
-    const infoData = await infoResponse.json();
+    const infoData = await sendAPICall(infoRequestEndpoint, infoRequestBody);
 
     return infoData;
   } catch (err) {

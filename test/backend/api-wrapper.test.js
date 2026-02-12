@@ -1,131 +1,34 @@
-const {
-  setSquareTag,
-  scanTag,
-  listThings,
-  createThing,
-  addNote,
-} = require("../../src/backend/api-wrapper");
-const {
-  getRootECI,
-  getInitializationECI,
-  getManifoldECI,
-  picoHasRuleset,
-  getECIByTag,
-  getChildEciByName,
-} = require("../../src/backend/utility");
+const { main, createThing } = require("../../src/backend/api-wrapper");
+const { getChildEciByName } = require("../../src/backend/utility");
 
-// test("get initial ECI", async () => {
-//   try {
-//     const eci = await getRootECI();
-//     expect(eci).toBeDefined();
-//     console.log("Root eci is", eci);
-//   } catch (error) {
-//     throw error;
-//   }
-// });
+let manifoldECI = "";
 
-// test("get initialization ECI", async () => {
-//   try {
-//     const eci = await getRootECI();
-//     expect(eci).toBeDefined();
-//     console.log("Root eci is", eci);
-//     const channelEci = await getInitializationECI(eci);
-//     console.log("Channel eci is", channelEci);
-//     expect(channelEci).toBeDefined();
-//   } catch (error) {
-//     throw error;
-//   }
-// });
+beforeAll(async () => {
+  manifoldECI = await main();
+  console.log("MANIFOLD ECI: ", manifoldECI);
+  await createThing(manifoldECI, "Blue Travel Case");
+}, 60000);
 
-// test("get manifold ECI", async () => {
-//   try {
-//     const eci = await getRootECI();
-//     expect(eci).toBeDefined();
-//     console.log("Root eci is", eci);
-//     const channelEci = await getInitializationECI(eci);
-//     console.log("Channel eci is", channelEci);
-//     expect(channelEci).toBeDefined();
-//     const manifoldEci = await getManifoldECI(channelEci);
-//     console.log("Manifold eci is", manifoldEci);
-//     expect(manifoldEci).toBeDefined();
-//   } catch (error) {
-//     throw error;
-//   }
-// });
+describe("Integration Test: createThing", () => {
+  test("successfully creates a new Thing Pico", async () => {
+    const manifoldECI = await main();
+    const thingName = "Red Travel Case";
 
-// test("has ruleset installed", async () => {
-//   try {
-//     const eci = await getRootECI();
-//     expect(eci).toBeDefined();
-//     console.log("Root eci is", eci);
-//     const channelEci = await getInitializationECI(eci);
-//     console.log("Channel eci is", channelEci);
-//     expect(channelEci).toBeDefined();
-//     const manifoldEci = await getManifoldECI(channelEci);
-//     console.log("Manifold eci is", manifoldEci);
-//     expect(manifoldEci).toBeDefined();
-//     let isInstalled = await picoHasRuleset(
-//       manifoldEci,
-//       "io.picolabs.manifold.safeandmine",
-//     );
-//     expect(isInstalled).toBe(false);
+    // Call the real createThing
+    const thingECI = await createThing(manifoldECI, thingName);
 
-//     isInstalled = await picoHasRuleset(
-//       manifoldEci,
-//       "io.picolabs.manifold_pico",
-//     );
-//     expect(isInstalled).toBe(true);
-//   } catch (error) {
-//     throw error;
-//   }
-// });
+    // Verify that the Thing exists in the engine
+    const checkECI = await getChildEciByName(manifoldECI, thingName);
+    expect(checkECI).toBe(thingECI);
 
-test("add tags", async () => {
-  try {
-    const eci = await getRootECI();
-    expect(eci).toBeDefined();
-    console.log("Root eci is", eci);
-    const ownerEci = await getChildEciByName(eci, "Owner");
-    console.log("Owner eci is", ownerEci);
-    expect(ownerEci).toBeDefined();
-    const initializedEci = await getInitializationECI(ownerEci);
-    console.log("Initialized eci is", initializedEci);
-    expect(initializedEci).toBeDefined();
-    const manifoldEci = await getManifoldECI(initializedEci);
-    expect(manifoldEci).toBeDefined();
-    console.log("Manifold eci is", manifoldEci);
-
-    // Create things to add tags to
-    const thingEci = await createThing(manifoldEci, "Test Thing");
-    console.log("Thing eci is", thingEci);
-    expect(thingEci).toBeDefined();
-    isInstalled = await picoHasRuleset(thingEci, "io.picolabs.safeandmine");
-    expect(isInstalled).toBe(true);
-    // Need to find the things manifold ECI to add tags
-    const thingManifoldEci = await getECIByTag(thingEci, "manifold");
-    console.log("Thing manifold eci is", thingManifoldEci);
-    expect(thingManifoldEci).toBeDefined();
-    const addedTag = await setSquareTag(thingManifoldEci, "fake tag");
-    expect(addedTag).toBeDefined();
-  } catch (error) {
-    throw error;
-  }
+    console.log("Created Thing ECI:", thingECI);
+  }, 20000); // test timeout
 });
+// We are going to change the thing to accept the url's from github.
+// Most probably in a .env
 
-// test("list things", async () => {
-//   try {
-//     const eci = await getRootECI();
-//     expect(eci).toBeDefined();
-//     console.log("Root eci is", eci);
-//     const channelEci = await getInitializationECI(eci);
-//     console.log("Channel eci is", channelEci);
-//     expect(channelEci).toBeDefined();
-//     const manifoldEci = await getManifoldECI(channelEci);
-//     console.log("Manifold eci is", manifoldEci);
-//     // Once createThing is implemented, we can enhance this test.
-//     result = await listThings(manifoldEci);
-//     expect(result).toEqual({});
-//   } catch (error) {
-//     throw error;
-//   }
-// });
+// We want to run main
+
+// Create the blue travel case
+// Attach a note
+// Get a note

@@ -1,0 +1,8 @@
+FROM node:18
+
+# Install pico-engine
+RUN npm install -g pico-engine
+
+EXPOSE 3000
+
+CMD ["pico-engine"]
