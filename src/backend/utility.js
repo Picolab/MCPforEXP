@@ -14,9 +14,7 @@ require("dotenv").config();
 async function getRootECI() {
   try {
     const requestEndpoint = "/api/ui-context";
-    console.log("BEFORE SEND API CALL IN ROOT ECI");
     const response = await sendAPICall(requestEndpoint, true, {});
-    console.log("AfTER SENDAPI call in GETROOTECI");
     const data = await response.json();
     await checkError(data);
     return data.eci;
@@ -124,8 +122,11 @@ async function getChildEciByName(parentEci, childName) {
       headers: { "Content-Type": "application/json" },
     };
 
-    const data = await sendAPICall(parentRequestEndpoint, parentRequestBody);
+    const response = await sendAPICall(parentRequestEndpoint, false, parentRequestBody);
+    const data = await response.json();
+    console.log("CHILD ECI RESPONSE: ", data);
     const childEcis = data.children || [];
+    console.log("childEci's: ", childEcis);
 
     // We must query each child individually to find the one with the matching name
     for (const childEci of childEcis) {
@@ -136,7 +137,10 @@ async function getChildEciByName(parentEci, childName) {
           headers: { "Content-Type": "application/json" },
         };
 
-        const actualName = await sendAPICall(requestEndpoint, requestBody);
+        const response2 = await sendAPICall(requestEndpoint, false, requestBody);
+        const actualName = await response2.json();
+
+        console.log("ACTUAL NAME :", actualName);
 
         if (nameResp.ok) {
           if (actualName === childName) {
@@ -362,7 +366,7 @@ async function sendAPICall(requestEndpoint, simpleRequest, requestBody) {
 
 
 async function checkError(data) {
-  if (error in data) {
+  if ("error" in data) {
     throw new Error(`Error from ${requestURL}: ${JSON.stringify(data)}`);
   }
 }

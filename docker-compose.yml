@@ -5,21 +5,14 @@ services:
       dockerfile: Dockerfile.pico
     ports:
       - "3000:3000"
-    healthcheck:
-      test: [
-        "CMD-SHELL",
-        "curl -sf http://localhost:3000/docs > /dev/null 2>&1"
-      ]
-      interval: 2s
-      timeout: 2s
-      retries: 15
 
   tests:
     build:
       context: .
       dockerfile: Dockerfile.tests
     depends_on:
-      pico:
-        condition: service_healthy
+      - pico
     environment:
       PICO_ENGINE_BASE_URL: http://pico:3000
+    command: sh -c "sleep 5 && npm test && rm -r ~/.pico-engine 2>/dev/null"
+

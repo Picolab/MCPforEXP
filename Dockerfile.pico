@@ -5,4 +5,4 @@ RUN npm install -g pico-engine
 
 EXPOSE 3000
 
-CMD ["pico-engine"]
+CMD pico-engine > /dev/null 2>&1
