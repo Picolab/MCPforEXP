@@ -230,21 +230,32 @@ ruleset io.picolabs.manifold_pico {
   rule removeThingSubscription {
     select when manifold remove_thing
     pre {
-      picoID = event:attr("picoID");
-      subID = subIDFromPicoID(picoID, ent:things).klog("found subID: ");
-      sub = subscription:established("Id", subID)[0].klog("found sub: ");
+      passedID = event:attr("picoID");
+      
+      // Get all established subscriptions for this Manifold
+      all_subs = subscription:established();
+      
+      // 1. Try to find by direct PicoID match
+      // 2. Try to find by checking the 'things' entity map as a fallback
+      sub = all_subs.filter(function(s){
+        s{"picoID"} == passedID || 
+        s{"Tx"} == passedID || 
+        s{"Rx"} == passedID ||
+        subIDFromPicoID(passedID, ent:things) == s{"Id"}
+      }).head();
+      
+      actualSubID = sub{"Id"}.klog(">>> FOUND SUB ID: ");
     }
 
-    if picoID && subID && sub then
-      every {
-        event:send({ "eci" : sub{"Tx"}, "domain" : "apps", "type" : "cleanup", "attrs" : {} }); //Jace added this event send to allow each app a chance to clean up.
-        send_directive("Attempting to cancel subscription to Thing", { "thing": ent:things{[picoID, "name"]} })
-      }
+    if actualSubID then
+      send_directive("Deleting thing...", {"subID": actualSubID})
+      
     fired {
       raise wrangler event "subscription_cancellation"
-        attributes {"Id": sub{"Id"}, "picoID": picoID, "event_type": "thing_deletion"}
+        attributes {"Id": actualSubID, "picoID": passedID, "event_type": "thing_deletion"}
     }
   }
+
   rule deleteThing {
     select when wrangler subscription_removed where event:attr("event_type") == "thing_deletion"
     pre {
