@@ -28,26 +28,6 @@ async function manifold_getThings(id) {
   }
 }
 
-/**
- * Checks if a thing with the given name is a registered child of the Manifold.
- * @async
- * @param {string} thingName - The name of the thing to verify.
- * @param {string|number} id - Correlation ID.
- * @returns {Promise<KrlResponse>} Boolean response wrapped in the KRL envelope.
- */
-async function manifold_isAChild(thingName, id) {
-  try {
-    const data = await api.manifold_isAChild(thingName);
-    return okResponse({
-      id,
-      data,
-      meta: { kind: "query", rid: "io.picolabs.manifold_pico", name: "isAChild", httpStatus: 200 },
-    });
-  } catch (error) {
-    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
-  }
-}
-
 // --- manifold_pico events ---
 
 /**
@@ -78,16 +58,22 @@ async function manifold_create_thing(name, id) {
  */
 async function manifold_remove_thing(thingName, id) {
   try {
-    const data = await api.removeThingByName(thingName);
+    const data = await api.deleteThing(thingName);
     return okResponse({
       id,
       data,
-      meta: { kind: "event", domain: "manifold", type: "remove_thing", httpStatus: 200 },
+      meta: {
+        kind: "event",
+        domain: "manifold",
+        type: "remove_thing",
+        httpStatus: 200,
+      },
     });
   } catch (error) {
     return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
   }
 }
+
 /**
  * Updates the display name of an existing Thing Pico (by thing name).
  * @async
@@ -102,7 +88,12 @@ async function manifold_change_thing_name(thingName, changedName, id) {
     return okResponse({
       id,
       data,
-      meta: { kind: "event", domain: "manifold", type: "change_thing_name", httpStatus: 200 },
+      meta: {
+        kind: "event",
+        domain: "manifold",
+        type: "change_thing_name",
+        httpStatus: 200,
+      },
     });
   } catch (error) {
     return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
@@ -132,7 +123,6 @@ async function safeandmine_newtag(thingName, tagID, domain, id) {
 
 module.exports = {
   manifold_getThings,
-  manifold_isAChild,
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,

@@ -6,6 +6,7 @@ const {
   getECIByTag,
   getChildEciByName,
   traverseHierarchy,
+  installRuleset,
 } = require("./utility.js");
 
 async function main() {
@@ -110,68 +111,14 @@ async function createThing(thingName) {
 async function addNote(eci, title, content) {}
 
 /**
- * Helper function to get a thing's manifold channel ECI by thing name.
+ * Removes a Thing Pico by it's name.
  * @async
- * @param {string} thingName - The name of the Thing Pico.
- * @returns {Promise<string>} The manifold channel ECI for the thing.
- */
-async function getThingManifoldChannel(thingName) {
-  const manifoldEci = await traverseHierarchy();
-  const thingEci = await getChildEciByName(manifoldEci, thingName);
-  if (!thingEci) {
-    throw new Error(`Thing "${thingName}" not found`);
-  }
-  return await getECIByTag(thingEci, "manifold");
-}
-
-/**
- * Resolves a thing name to its picoID using the list of things from the manifold.
- * @async
- * @param {string} thingName - The name of the Thing Pico.
- * @returns {Promise<string>} The picoID (ECI) of the thing.
- */
-async function getPicoIDByName(thingName) {
-  const things = await listThings();
-  for (const [picoID, thingData] of Object.entries(things)) {
-    if (thingData.name === thingName) {
-      return picoID;
-    }
-  }
-  throw new Error(`Thing "${thingName}" not found`);
-}
-
-/**
- * Checks if a thing with the given name is a registered child of the Manifold.
- * @async
- * @param {string} thingName - The name of the thing to verify.
- * @returns {Promise<boolean>} True if the thing is a child, false otherwise.
- */
-async function manifold_isAChild(thingName) {
-  const picoID = await getPicoIDByName(thingName);
-  const eci = await traverseHierarchy();
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/query/io.picolabs.manifold_pico/isAChild`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ picoID }),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`HTTP Error (${response.status}): ${await response.text()}`);
-  }
-
-  return await response.json();
-}
-
-/**
- * Removes a Thing Pico by picoID (internal use).
- * @async
- * @param {string} picoID - The ID of the Thing Pico to remove.
+ * @param {string} thingName - The name of the Thing Pico to remove.
  * @returns {Promise<Object>} The engine's event response.
  */
-async function manifold_remove_thing(picoID) {
+async function deleteThing(thingName) {
+  const picoID = await getPicoIDByName(thingName);
+
   const eci = await traverseHierarchy();
   const response = await fetch(
     `http://localhost:3000/c/${eci}/event/manifold/remove_thing`,
@@ -183,7 +130,9 @@ async function manifold_remove_thing(picoID) {
   );
 
   if (!response.ok) {
-    throw new Error(`HTTP Error (${response.status}): ${await response.text()}`);
+    throw new Error(
+      `HTTP Error (${response.status}): ${await response.text()}`,
+    );
   }
 
   return await response.json();
@@ -209,7 +158,9 @@ async function manifold_change_thing_name(thingName, changedName) {
   );
 
   if (!response.ok) {
-    throw new Error(`HTTP Error (${response.status}): ${await response.text()}`);
+    throw new Error(
+      `HTTP Error (${response.status}): ${await response.text()}`,
+    );
   }
 
   return await response.json();
@@ -392,14 +343,19 @@ async function updateOwnerInfo(thingName, ownerInfo) {
 }
 
 /**
- * Removes a Thing Pico by its name (finds the picoID from the name).
+ * Resolves a thing name to its picoID using the list of things from the manifold.
  * @async
- * @param {string} thingName - The name of the Thing Pico to remove.
- * @returns {Promise<Object>} The engine's event response.
+ * @param {string} thingName - The name of the Thing Pico.
+ * @returns {Promise<string>} The picoID (ECI) of the thing.
  */
-async function removeThingByName(thingName) {
-  const picoID = await getPicoIDByName(thingName);
-  return await manifold_remove_thing(picoID);
+async function getPicoIDByName(thingName) {
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      return picoID;
+    }
+  }
+  throw new Error(`Thing "${thingName}" not found`);
 }
 
 module.exports = {
@@ -410,9 +366,7 @@ module.exports = {
   setSquareTag,
   scanTag,
   updateOwnerInfo,
-  manifold_isAChild,
-  manifold_remove_thing,
+  deleteThing,
   manifold_change_thing_name,
-  removeThingByName,
   getPicoIDByName,
 };

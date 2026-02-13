@@ -22,14 +22,9 @@ const { z } = require("zod");
 // Utility functions are no longer exposed to MCP users
 const {
   manifold_getThings,
-  manifold_isAChild,
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,
-  safeandmine_getInformation,
-  safeandmine_getTags,
-  safeandmine_update,
-  safeandmine_delete,
   safeandmine_newtag,
 } = require("../backend/krl-operation.js");
 
@@ -61,13 +56,6 @@ async function main() {
   );
 
   server.tool(
-    "manifold_isAChild",
-    "Check if a thing with the given name is a registered child of the Manifold.",
-    { thingName: z.string().describe("The name of the thing to check"), id: z.string().optional() },
-    toolHandler(({ thingName, id }) => manifold_isAChild(thingName, id)),
-  );
-
-  server.tool(
     "manifold_create_thing",
     "Create a new digital thing Pico. Provide a descriptive name.",
     {
@@ -80,7 +68,10 @@ async function main() {
   server.tool(
     "manifold_remove_thing",
     "Remove a thing pico from Manifold by its name.",
-    { thingName: z.string().describe("The name of the thing to remove"), id: z.string().optional() },
+    {
+      thingName: z.string().describe("The name of the thing to remove"),
+      id: z.string().optional(),
+    },
     toolHandler(({ thingName, id }) => manifold_remove_thing(thingName, id)),
   );
 

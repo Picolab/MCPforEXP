@@ -105,23 +105,12 @@ function tool({ name, description, properties, required, outputDescription }) {
 // Manifold pico
 const manifold_getThings = tool({
   name: "manifold_getThings",
-  description: "List all digital things managed by Manifold. No arguments required.",
+  description:
+    "List all digital things managed by Manifold. No arguments required.",
   properties: { id: TOOL_COMMON_PROPS.id },
   required: [],
   outputDescription:
     "Returns map of thing picoIDs to thing objects (name, subID, picoID, color, etc.)",
-});
-
-const manifold_isAChild = tool({
-  name: "manifold_isAChild",
-  description: "Check if a thing with the given name is a registered child of the Manifold.",
-  properties: {
-    id: TOOL_COMMON_PROPS.id,
-    thingName: { type: "string", description: "The name of the thing to check." },
-  },
-  required: ["thingName"],
-  outputDescription:
-    "Returns boolean indicating if the thing is a child of the manifold pico",
 });
 
 const manifold_create_thing = tool({
@@ -141,7 +130,10 @@ const manifold_remove_thing = tool({
   description: "Remove a thing pico from Manifold by its name.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
-    thingName: { type: "string", description: "The name of the thing to remove." },
+    thingName: {
+      type: "string",
+      description: "The name of the thing to remove.",
+    },
   },
   required: ["thingName"],
   outputDescription:
@@ -150,10 +142,14 @@ const manifold_remove_thing = tool({
 
 const manifold_change_thing_name = tool({
   name: "manifold_change_thing_name",
-  description: "Rename a thing pico. Use the thing's current name and the new name.",
+  description:
+    "Rename a thing pico. Use the thing's current name and the new name.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
-    thingName: { type: "string", description: "The current name of the thing to rename." },
+    thingName: {
+      type: "string",
+      description: "The current name of the thing to rename.",
+    },
     changedName: { type: "string", description: "The new name for the thing." },
   },
   required: ["thingName", "changedName"],
@@ -168,7 +164,11 @@ const safeandmine_newtag = tool({
     id: TOOL_COMMON_PROPS.id,
     thingName: { type: "string", description: "The name of the Pico to tag." },
     tagID: { type: "string", description: "The alphanumeric tag ID." },
-    domain: { type: "string", description: "Tag domain/type (e.g., sqtg).", default: "sqtg" },
+    domain: {
+      type: "string",
+      description: "Tag domain/type (e.g., sqtg).",
+      default: "sqtg",
+    },
   },
   required: ["thingName", "tagID"],
   outputDescription:
@@ -178,7 +178,6 @@ const safeandmine_newtag = tool({
 module.exports = {
   tools: [
     manifold_getThings,
-    manifold_isAChild,
     manifold_create_thing,
     manifold_remove_thing,
     manifold_change_thing_name,
