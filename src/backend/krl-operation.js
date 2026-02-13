@@ -74,7 +74,7 @@ async function createThing(name, id) {
  * @param {string|number} id - Correlation ID.
  * @returns {Promise<KrlResponse>} Standard KRL envelope.
  */
-async function manifold_remove_thing(thingName, id) {
+async function deleteThing(thingName, id) {
   try {
     const thingEci = await api.deleteThing(thingName);
     return okResponse({
@@ -210,13 +210,18 @@ async function safeandmine_delete(eci, toDelete, id) {
  * @param {string} domain - The namespace for the tag (e.g., 'sqtg').
  * @param {string|number} id - Correlation ID.
  */
-async function safeandmine_newtag(thingName, tagID, domain, id) {
+async function addTag(thingName, tagID, domain, id) {
   try {
     const data = await api.setSquareTag(thingName, tagID, domain);
     return okResponse({
       id,
       data,
-      meta: { kind: "event", domain: "safeandmine" },
+      meta: {
+        kind: "event",
+        domain: "safeandmine",
+        type: "add_tag",
+        httpStatus: 200,
+      },
     });
   } catch (error) {
     return errResponse({ id, code: "INSTALL_ERROR", message: error.message });
@@ -227,11 +232,11 @@ module.exports = {
   getThings,
   manifold_isAChild,
   createThing,
-  manifold_remove_thing,
+  deleteThing,
   manifold_change_thing_name,
   safeandmine_getInformation,
   safeandmine_getTags,
   safeandmine_update,
   safeandmine_delete,
-  safeandmine_newtag,
+  addTag,
 };

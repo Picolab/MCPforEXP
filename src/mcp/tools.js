@@ -137,8 +137,8 @@ const createThing = tool({
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
-const manifold_remove_thing = tool({
-  name: "removeThing",
+const deleteThing = tool({
+  name: "deleteThing",
   description:
     "Delete a thing Pico by name. This will remove the pico and all its data irreversibly.",
   properties: {
@@ -227,10 +227,9 @@ const safeandmine_delete = tool({
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
-const safeandmine_newtag = tool({
+const addTag = tool({
   name: "addTag",
-  description:
-    "Add a new tag to this thing pico, which registers it in the tag registry and makes it discoverable by that tag.",
+  description: "Assign a physical SquareTag to a named Pico.",
   properties: {
     ...TOOL_COMMON_PROPS,
     tagID: { type: "string", description: "Tag identifier." },
@@ -241,94 +240,17 @@ const safeandmine_newtag = tool({
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
-// Utility tools
-const addTags = tool({
-  name: "addTags",
-  description:
-    "Installs safeandmine ruleset on a thing pico if not already installed",
-  properties: { ...TOOL_COMMON_PROPS },
-  required: ["eci"],
-  outputDescription:
-    "Returns undefined (void operation), check meta.httpStatus for success",
-});
-
-const childHasRuleset = tool({
-  name: "childHasRuleset",
-  description: "Check if a ruleset (RID) is installed on a child pico",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    rid: {
-      type: "string",
-      description: "Ruleset ID to check (e.g., io.picolabs.safeandmine)",
-    },
-  },
-  required: ["eci", "rid"],
-  outputDescription:
-    "Returns boolean indicating if the ruleset is installed (note: this is a direct API call, not via uniform envelope)",
-});
-
-const getRootECI = tool({
-  name: "getRootECI",
-  description:
-    "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
-  properties: {},
-  required: [],
-  outputDescription:
-    "Returns { rootEci: string } — the ECI of the root pico (pico-engine UI pico).",
-});
-
-const installOwner = tool({
-  name: "installOwner",
-  description:
-    "Install the manifold_owner ruleset on the root pico (requires root ECI)",
-  properties: { ...TOOL_COMMON_PROPS },
-  required: ["eci"],
-  outputDescription:
-    "Returns undefined (void operation), check console/logs for success",
-});
-
-const initializeManifold = tool({
-  name: "initializeManifold",
-  description:
-    "Full bootstrap: install owner ruleset, create manifold pico, return manifold ECI (no args needed, uses root ECI)",
-  properties: {},
-  required: [],
-  outputDescription:
-    "Returns the manifold pico ECI as a string (not wrapped in uniform envelope)",
-});
-
-const installRuleset = tool({
-  name: "installRuleset",
-  description: "Install a KRL ruleset on a pico via file:// URL",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    filePath: {
-      type: "string",
-      description: "File URL (e.g., file:///path/to/ruleset.krl)",
-    },
-  },
-  required: ["eci", "filePath"],
-  outputDescription:
-    "Returns undefined (void operation), check console/logs for success",
-});
-
 module.exports = {
   tools: [
     getThings,
     manifold_isAChild,
     createThing,
-    manifold_remove_thing,
+    deleteThing,
     manifold_change_thing_name,
     safeandmine_getInformation,
     safeandmine_getTags,
     safeandmine_update,
     safeandmine_delete,
-    safeandmine_newtag,
-    getRootECI,
-    addTags,
-    childHasRuleset,
-    installOwner,
-    initializeManifold,
-    installRuleset,
+    addTag,
   ],
 };

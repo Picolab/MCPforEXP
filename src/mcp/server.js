@@ -20,25 +20,16 @@ const {
 const { z } = require("zod");
 
 const {
-  getRootECI,
-  getInitializationECI,
-  getManifoldECI,
-  installOwner,
-  getECIByTag,
-  getChildEciByName,
-  installRuleset,
-} = require("../backend/utility.js");
-const {
   getThings,
   manifold_isAChild,
   createThing,
-  manifold_remove_thing,
+  deleteThing,
   manifold_change_thing_name,
   safeandmine_getInformation,
   safeandmine_getTags,
   safeandmine_update,
   safeandmine_delete,
-  safeandmine_newtag,
+  addTag,
 } = require("../backend/krl-operation.js");
 
 function asJsonContent(obj) {
@@ -88,10 +79,10 @@ async function main() {
   );
 
   server.tool(
-    "manifold_remove_thing",
-    "KRL event: manifold/remove_thing (attrs: thingName)",
+    "deleteThing",
+    "Delete a thing Pico by name. This will remove the pico and all its data irreversibly.",
     { thingName: z.string(), id: z.string().optional() },
-    toolHandler(({ thingName, id }) => manifold_remove_thing(thingName, id)),
+    toolHandler(({ thingName, id }) => deleteThing(thingName, id)),
   );
 
   server.tool(
@@ -162,7 +153,7 @@ async function main() {
   );
 
   server.tool(
-    "safeandmine_newtag",
+    "addTag",
     "Assign a physical SquareTag to a named Pico.",
     {
       thingName: z.string().describe("The name of the Pico to tag"),
@@ -170,113 +161,8 @@ async function main() {
       domain: z.string().default("sqtg"),
     },
     toolHandler(({ thingName, tagID, domain, id }) =>
-      safeandmine_newtag(thingName, tagID, domain, id),
+      addTag(thingName, tagID, domain, id),
     ),
-  );
-
-  // Additional utility tools
-  server.tool(
-    "getRootECI",
-    "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
-    {},
-    toolHandler(async () => {
-      const eci = await getRootECI();
-      return { rootEci: eci };
-    }),
-  );
-
-  server.tool(
-    "getChildEciByName",
-    "Find the ECI of a child pico by name. Queries a parent pico to find a child pico with a specific name.",
-    {
-      parentEci: z.string().describe("Parent pico ECI"),
-      childName: z.string().describe("Name of the child pico to find"),
-    },
-    toolHandler(async ({ parentEci, childName }) => {
-      const eci = await getChildEciByName(parentEci, childName);
-      return { eci: eci || null };
-    }),
-  );
-
-  server.tool(
-    "getInitializationECI",
-    "Get the initialization channel ECI from an owner pico. This channel has proper permissions for querying manifold_owner.",
-    { ownerEci: z.string().describe("Owner pico ECI") },
-    toolHandler(async ({ ownerEci }) => {
-      const eci = await getInitializationECI(ownerEci);
-      return { eci: eci || null };
-    }),
-  );
-
-  server.tool(
-    "getManifoldECI",
-    "Get the manifold pico channel ECI (channel tagged 'manifold') from the owner pico. Requires owner initialization ECI.",
-    {
-      ownerInitializationEci: z
-        .string()
-        .describe("Owner pico initialization ECI (from getInitializationECI)"),
-    },
-    toolHandler(async ({ ownerInitializationEci }) => {
-      const eci = await getManifoldECI(ownerInitializationEci);
-      return { eci: eci || null };
-    }),
-  );
-
-  server.tool(
-    "getECIByTag",
-    "Get a channel ECI by tag from a pico. Searches all channels on the pico for one with the specified tag.",
-    {
-      eci: z.string().describe("Pico ECI to search"),
-      tag: z
-        .string()
-        .describe("Tag to search for (e.g., 'manifold', 'initialization')"),
-    },
-    toolHandler(async ({ eci, tag }) => {
-      const channelEci = await getECIByTag(eci, tag);
-      return { eci: channelEci || null };
-    }),
-  );
-
-  server.tool(
-    "installOwner",
-    "Install the manifold_owner ruleset on the root pico (requires root ECI)",
-    { ...base },
-    toolHandler(async ({ eci }) => {
-      try {
-        await installOwner(eci);
-        return {
-          success: true,
-          message: "manifold_owner ruleset installation initiated",
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: error.message || "Failed to install ruleset",
-        };
-      }
-    }),
-  );
-
-  server.tool(
-    "installRuleset",
-    "Install a KRL ruleset on a pico via file:// URL",
-    {
-      ...base,
-      filePath: z
-        .string()
-        .describe("File URL (e.g., file:///path/to/ruleset.krl)"),
-    },
-    toolHandler(async ({ eci, filePath }) => {
-      try {
-        await installRuleset(eci, filePath);
-        return { success: true, message: "Ruleset installation initiated" };
-      } catch (error) {
-        return {
-          success: false,
-          error: error.message || "Failed to install ruleset",
-        };
-      }
-    }),
   );
 
   const transport = new StdioServerTransport();
