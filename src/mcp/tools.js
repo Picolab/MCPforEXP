@@ -105,8 +105,8 @@ function tool({ name, description, properties, required, outputDescription }) {
 // Manifold pico
 const manifold_getThings = tool({
   name: "manifold_getThings",
-  description: "KRL query: io.picolabs.manifold_pico/getThings",
-  properties: { ...TOOL_COMMON_PROPS },
+  description: "List all digital things managed by Manifold. No arguments required.",
+  properties: { id: TOOL_COMMON_PROPS.id },
   required: [],
   outputDescription:
     "Returns map of thing picoIDs to thing objects (name, subID, picoID, color, etc.)",
@@ -114,14 +114,14 @@ const manifold_getThings = tool({
 
 const manifold_isAChild = tool({
   name: "manifold_isAChild",
-  description: "KRL query: io.picolabs.manifold_pico/isAChild",
+  description: "Check if a thing with the given name is a registered child of the Manifold.",
   properties: {
-    ...TOOL_COMMON_PROPS,
-    picoID: { type: "string", description: "Child pico id to check." },
+    id: TOOL_COMMON_PROPS.id,
+    thingName: { type: "string", description: "The name of the thing to check." },
   },
-  required: ["eci", "picoID"],
+  required: ["thingName"],
   outputDescription:
-    "Returns boolean indicating if the given picoID is a child of the manifold pico",
+    "Returns boolean indicating if the thing is a child of the manifold pico",
 });
 
 const manifold_create_thing = tool({
@@ -138,170 +138,41 @@ const manifold_create_thing = tool({
 
 const manifold_remove_thing = tool({
   name: "manifold_remove_thing",
-  description: "KRL event: manifold/remove_thing (attrs: picoID)",
+  description: "Remove a thing pico from Manifold by its name.",
   properties: {
-    ...TOOL_COMMON_PROPS,
-    picoID: { type: "string", description: "Thing pico id to remove." },
+    id: TOOL_COMMON_PROPS.id,
+    thingName: { type: "string", description: "The name of the thing to remove." },
   },
-  required: ["eci", "picoID"],
+  required: ["thingName"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
 const manifold_change_thing_name = tool({
   name: "manifold_change_thing_name",
-  description:
-    "KRL event: manifold/change_thing_name (attrs: picoID, changedName)",
+  description: "Rename a thing pico. Use the thing's current name and the new name.",
   properties: {
-    ...TOOL_COMMON_PROPS,
-    picoID: { type: "string", description: "Thing pico id to rename." },
-    changedName: { type: "string", description: "New name for the thing." },
+    id: TOOL_COMMON_PROPS.id,
+    thingName: { type: "string", description: "The current name of the thing to rename." },
+    changedName: { type: "string", description: "The new name for the thing." },
   },
-  required: ["eci", "picoID", "changedName"],
-  outputDescription:
-    "Event result (typically empty data object, check meta.httpStatus for success)",
-});
-
-// Thing pico (safeandmine ruleset)
-const safeandmine_getInformation = tool({
-  name: "safeandmine_getInformation",
-  description:
-    "KRL query: io.picolabs.safeandmine/getInformation (optional arg: info)",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    info: { type: "string", description: "Optional field name to fetch (name/email/phone/message). If omitted returns the whole map." },
-  },
-  required: ["eci"],
-  outputDescription: "Returns contact info map (name, email, phone, message) or single field value if info param provided",
-});
-
-const safeandmine_getTags = tool({
-  name: "safeandmine_getTags",
-  description: "KRL query: io.picolabs.safeandmine/getTags",
-  properties: { ...TOOL_COMMON_PROPS },
-  required: ["eci"],
-  outputDescription:
-    "Returns map of tag domains to tag IDs registered on this thing pico",
-});
-
-const safeandmine_update = tool({
-  name: "safeandmine_update",
-  description:
-    "KRL event: safeandmine/update (attrs: name,email,phone,message,shareName,shareEmail,sharePhone)",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    name: { type: "string", description: "Contact name" },
-    email: { type: "string", description: "Contact email" },
-    phone: { type: "string", description: "Contact phone" },
-    message: { type: "string", description: "Contact message" },
-    shareName: { type: "boolean", description: "Whether to share name" },
-    shareEmail: { type: "boolean", description: "Whether to share email" },
-    sharePhone: { type: "boolean", description: "Whether to share phone" },
-  },
-  required: ["eci"],
-  outputDescription:
-    "Event result (typically empty data object, check meta.httpStatus for success)",
-});
-
-const safeandmine_delete = tool({
-  name: "safeandmine_delete",
-  description:
-    "KRL event: safeandmine/delete (optional attr: toDelete). If omitted clears all stored info.",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    toDelete: {
-      type: "string",
-      description:
-        "Field name to delete (name/email/phone/message). Omit to clear all.",
-    },
-  },
-  required: ["eci"],
+  required: ["thingName", "changedName"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
 const safeandmine_newtag = tool({
   name: "safeandmine_newtag",
-  description: "KRL event: safeandmine/new_tag (attrs: tagID, domain)",
+  description: "Assign a physical SquareTag to a named Pico.",
   properties: {
-    ...TOOL_COMMON_PROPS,
-    tagID: { type: "string", description: "Tag identifier." },
-    domain: { type: "string", description: "Tag domain/type (e.g., sqtg)." },
+    id: TOOL_COMMON_PROPS.id,
+    thingName: { type: "string", description: "The name of the Pico to tag." },
+    tagID: { type: "string", description: "The alphanumeric tag ID." },
+    domain: { type: "string", description: "Tag domain/type (e.g., sqtg).", default: "sqtg" },
   },
-  required: ["thingName", "tagID", "domain"],
+  required: ["thingName", "tagID"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
-});
-
-// Utility tools
-const addTags = tool({
-  name: "addTags",
-  description:
-    "Installs safeandmine ruleset on a thing pico if not already installed",
-  properties: { ...TOOL_COMMON_PROPS },
-  required: ["eci"],
-  outputDescription:
-    "Returns undefined (void operation), check meta.httpStatus for success",
-});
-
-const childHasRuleset = tool({
-  name: "childHasRuleset",
-  description: "Check if a ruleset (RID) is installed on a child pico",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    rid: {
-      type: "string",
-      description: "Ruleset ID to check (e.g., io.picolabs.safeandmine)",
-    },
-  },
-  required: ["eci", "rid"],
-  outputDescription:
-    "Returns boolean indicating if the ruleset is installed (note: this is a direct API call, not via uniform envelope)",
-});
-
-const getRootECI = tool({
-  name: "getRootECI",
-  description:
-    "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
-  properties: {},
-  required: [],
-  outputDescription:
-    "Returns { rootEci: string } — the ECI of the root pico (pico-engine UI pico).",
-});
-
-const installOwner = tool({
-  name: "installOwner",
-  description:
-    "Install the manifold_owner ruleset on the root pico (requires root ECI)",
-  properties: { ...TOOL_COMMON_PROPS },
-  required: ["eci"],
-  outputDescription:
-    "Returns undefined (void operation), check console/logs for success",
-});
-
-const initializeManifold = tool({
-  name: "initializeManifold",
-  description:
-    "Full bootstrap: install owner ruleset, create manifold pico, return manifold ECI (no args needed, uses root ECI)",
-  properties: {},
-  required: [],
-  outputDescription:
-    "Returns the manifold pico ECI as a string (not wrapped in uniform envelope)",
-});
-
-const installRuleset = tool({
-  name: "installRuleset",
-  description: "Install a KRL ruleset on a pico via file:// URL",
-  properties: {
-    ...TOOL_COMMON_PROPS,
-    filePath: {
-      type: "string",
-      description: "File URL (e.g., file:///path/to/ruleset.krl)",
-    },
-  },
-  required: ["eci", "filePath"],
-  outputDescription:
-    "Returns undefined (void operation), check console/logs for success",
 });
 
 module.exports = {
@@ -311,16 +182,6 @@ module.exports = {
     manifold_create_thing,
     manifold_remove_thing,
     manifold_change_thing_name,
-    safeandmine_getInformation,
-    safeandmine_getTags,
-    safeandmine_update,
-    safeandmine_delete,
     safeandmine_newtag,
-    getRootECI,
-    addTags,
-    childHasRuleset,
-    installOwner,
-    initializeManifold,
-    installRuleset,
   ],
 };

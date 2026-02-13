@@ -110,6 +110,112 @@ async function createThing(thingName) {
 async function addNote(eci, title, content) {}
 
 /**
+ * Helper function to get a thing's manifold channel ECI by thing name.
+ * @async
+ * @param {string} thingName - The name of the Thing Pico.
+ * @returns {Promise<string>} The manifold channel ECI for the thing.
+ */
+async function getThingManifoldChannel(thingName) {
+  const manifoldEci = await traverseHierarchy();
+  const thingEci = await getChildEciByName(manifoldEci, thingName);
+  if (!thingEci) {
+    throw new Error(`Thing "${thingName}" not found`);
+  }
+  return await getECIByTag(thingEci, "manifold");
+}
+
+/**
+ * Resolves a thing name to its picoID using the list of things from the manifold.
+ * @async
+ * @param {string} thingName - The name of the Thing Pico.
+ * @returns {Promise<string>} The picoID (ECI) of the thing.
+ */
+async function getPicoIDByName(thingName) {
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      return picoID;
+    }
+  }
+  throw new Error(`Thing "${thingName}" not found`);
+}
+
+/**
+ * Checks if a thing with the given name is a registered child of the Manifold.
+ * @async
+ * @param {string} thingName - The name of the thing to verify.
+ * @returns {Promise<boolean>} True if the thing is a child, false otherwise.
+ */
+async function manifold_isAChild(thingName) {
+  const picoID = await getPicoIDByName(thingName);
+  const eci = await traverseHierarchy();
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/query/io.picolabs.manifold_pico/isAChild`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP Error (${response.status}): ${await response.text()}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Removes a Thing Pico by picoID (internal use).
+ * @async
+ * @param {string} picoID - The ID of the Thing Pico to remove.
+ * @returns {Promise<Object>} The engine's event response.
+ */
+async function manifold_remove_thing(picoID) {
+  const eci = await traverseHierarchy();
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/event/manifold/remove_thing`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP Error (${response.status}): ${await response.text()}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Updates the display name of an existing Thing Pico (by thing name).
+ * @async
+ * @param {string} thingName - The current name of the Thing.
+ * @param {string} changedName - The new name for the Thing.
+ * @returns {Promise<Object>} The engine's event response.
+ */
+async function manifold_change_thing_name(thingName, changedName) {
+  const picoID = await getPicoIDByName(thingName);
+  const eci = await traverseHierarchy();
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/event/manifold/change_thing_name`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID, changedName }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP Error (${response.status}): ${await response.text()}`);
+  }
+
+  return await response.json();
+}
+
+/**
  * Registers a SquareTag for a specific Thing.
  * Automatically ensures the 'safeandmine' ruleset is installed on the Thing before registration.
  * @async
@@ -285,6 +391,17 @@ async function updateOwnerInfo(thingName, ownerInfo) {
   }
 }
 
+/**
+ * Removes a Thing Pico by its name (finds the picoID from the name).
+ * @async
+ * @param {string} thingName - The name of the Thing Pico to remove.
+ * @returns {Promise<Object>} The engine's event response.
+ */
+async function removeThingByName(thingName) {
+  const picoID = await getPicoIDByName(thingName);
+  return await manifold_remove_thing(picoID);
+}
+
 module.exports = {
   main,
   listThings,
@@ -293,4 +410,9 @@ module.exports = {
   setSquareTag,
   scanTag,
   updateOwnerInfo,
+  manifold_isAChild,
+  manifold_remove_thing,
+  manifold_change_thing_name,
+  removeThingByName,
+  getPicoIDByName,
 };
