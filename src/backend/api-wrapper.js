@@ -116,22 +116,13 @@ async function createThing(thingName) {
  */
 async function deleteThing(thingName) {
   const manifoldEci = await traverseHierarchy();
-  console.log(`Manifold ECI: ${manifoldEci}`);
   const thingEci = await getChildEciByName(manifoldEci, thingName);
-  console.log(`Thing ECI for "${thingName}": ${thingEci}`);
   if (!thingEci) throw new Error(`Thing "${thingName}" not found.`);
-  // Use your manifold domain to ensure KRL cleanup happens!
+
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/remove_thing`;
-
   const thingChildChannel = await getECIByTag(thingEci, "child");
-  console.log(`Thing's Child Channel: ${thingChildChannel}`);
-  try {
-    //     const thingPicoResponse = await fetch(`
-    // http://localhost:3000/c/${thingChildChannel}/query/io.picolabs.wrangler/myself`);
-    //     const thingPicoIdJson = await thingPicoResponse.json();
-    //     const thingPicoId = thingPicoIdJson.id;
-    //     console.log(`Thing Pico ID: ${thingPicoId}`);
 
+  try {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

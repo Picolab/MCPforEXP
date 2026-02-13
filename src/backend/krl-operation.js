@@ -16,7 +16,7 @@ const { normalizeId, okResponse, errResponse } = require("./krl-json");
  * @param {string|number} id - Correlation ID for the request.
  * @returns {Promise<KrlResponse>} Standard envelope containing the map of things.
  */
-async function manifold_getThings(id) {
+async function getThings(id) {
   try {
     const data = await api.listThings();
     return okResponse({
@@ -54,7 +54,7 @@ async function manifold_isAChild(eci, picoID, id) {
  * Uses createThing internally which waits for completion and returns the thing's ECI.
  * Returns uniform envelope format: { id, ok, data: { thingEci }, error?, meta }
  */
-async function manifold_create_thing(name, id) {
+async function createThing(name, id) {
   try {
     const thingEci = await api.createThing(name);
     return okResponse({
@@ -224,9 +224,9 @@ async function safeandmine_newtag(thingName, tagID, domain, id) {
 }
 
 module.exports = {
-  manifold_getThings,
+  getThings,
   manifold_isAChild,
-  manifold_create_thing,
+  createThing,
   manifold_remove_thing,
   manifold_change_thing_name,
   safeandmine_getInformation,

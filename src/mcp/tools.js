@@ -103,9 +103,10 @@ function tool({ name, description, properties, required, outputDescription }) {
 }
 
 // Manifold pico
-const manifold_getThings = tool({
-  name: "manifold_getThings",
-  description: "KRL query: io.picolabs.manifold_pico/getThings",
+const getThings = tool({
+  name: "getThings",
+  description:
+    "Get a list of all things (child picos) under the manifold pico.",
   properties: { ...TOOL_COMMON_PROPS },
   required: [],
   outputDescription:
@@ -124,9 +125,9 @@ const manifold_isAChild = tool({
     "Returns boolean indicating if the given picoID is a child of the manifold pico",
 });
 
-const manifold_create_thing = tool({
-  name: "manifold_create_thing",
-  description: "KRL event: manifold/create_thing (attrs: name)",
+const createThing = tool({
+  name: "createThing",
+  description: "Create a new digital thing Pico. Provide a descriptive name.",
   properties: {
     ...TOOL_COMMON_PROPS,
     name: { type: "string", description: "Name for the new thing pico." },
@@ -137,8 +138,9 @@ const manifold_create_thing = tool({
 });
 
 const manifold_remove_thing = tool({
-  name: "manifold_remove_thing",
-  description: "KRL event: manifold/remove_thing (attrs: thingName)",
+  name: "removeThing",
+  description:
+    "Delete a thing Pico by name. This will remove the pico and all its data irreversibly.",
   properties: {
     ...TOOL_COMMON_PROPS,
     thingName: { type: "string", description: "Thing pico name to remove." },
@@ -226,8 +228,9 @@ const safeandmine_delete = tool({
 });
 
 const safeandmine_newtag = tool({
-  name: "safeandmine_newtag",
-  description: "KRL event: safeandmine/new_tag (attrs: tagID, domain)",
+  name: "addTag",
+  description:
+    "Add a new tag to this thing pico, which registers it in the tag registry and makes it discoverable by that tag.",
   properties: {
     ...TOOL_COMMON_PROPS,
     tagID: { type: "string", description: "Tag identifier." },
@@ -311,9 +314,9 @@ const installRuleset = tool({
 
 module.exports = {
   tools: [
-    manifold_getThings,
+    getThings,
     manifold_isAChild,
-    manifold_create_thing,
+    createThing,
     manifold_remove_thing,
     manifold_change_thing_name,
     safeandmine_getInformation,

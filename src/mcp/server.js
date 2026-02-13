@@ -29,9 +29,9 @@ const {
   installRuleset,
 } = require("../backend/utility.js");
 const {
-  manifold_getThings,
+  getThings,
   manifold_isAChild,
-  manifold_create_thing,
+  createThing,
   manifold_remove_thing,
   manifold_change_thing_name,
   safeandmine_getInformation,
@@ -64,10 +64,10 @@ async function main() {
   const base = { eci: z.string(), id: z.string().optional() };
 
   server.tool(
-    "manifold_getThings",
+    "getThings",
     "List all digital things managed by Manifold. No arguments required.",
     { id: z.string().optional() },
-    toolHandler(({ id }) => manifold_getThings(id)),
+    toolHandler(({ id }) => getThings(id)),
   );
 
   server.tool(
@@ -78,13 +78,13 @@ async function main() {
   );
 
   server.tool(
-    "manifold_create_thing",
+    "createThing",
     "Create a new digital thing Pico. Provide a descriptive name.",
     {
       name: z.string().describe("Descriptive name (e.g. 'Backpack')"),
       id: z.string().optional(),
     },
-    toolHandler(({ name, id }) => manifold_create_thing(name, id)),
+    toolHandler(({ name, id }) => createThing(name, id)),
   );
 
   server.tool(
