@@ -1,10 +1,15 @@
 const { main, createThing } = require("../../src/backend/api-wrapper");
-const { getChildEciByName, sendAPICall } = require("../../src/backend/utility");
+const { getChildEciByName, sendAPICall, installRuleset, getRootECI } = require("../../src/backend/utility");
 
 let manifoldECI = "";
 
 beforeAll(async () => {
-  console.log("Started before all");
+  console.log("Installing Manifold...");
+  console.log("DIRECTORY: ", process.cwd());
+  const rootECI = await getRootECI();
+  console.log("ROOT ECI: ", rootECI)
+  await installRuleset(rootECI, "/app/Manifold-api/manifold_bootstrap.krl");
+  console.log("Manifold Installed");
   manifoldECI = await main();
   console.log("MANIFOLD ECI: ", manifoldECI);
   await createThing(manifoldECI, "Blue Travel Case");
