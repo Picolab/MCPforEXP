@@ -27,6 +27,7 @@ const {
   manifold_change_thing_name,
   safeandmine_newtag,
   scanTag,
+  updateOwnerInfo,
 } = require("../backend/krl-operation.js");
 
 function asJsonContent(obj) {
@@ -111,6 +112,27 @@ async function main() {
       id: z.string().optional(),
     },
     toolHandler(({ tagID, domain, id }) => scanTag(tagID, domain, id)),
+  );
+
+  server.tool(
+    "updateOwnerInfo",
+    "Update the owner information for a thing pico.",
+    {
+      thingName: z.string().describe("The name of the thing to update"),
+      ownerInfo: z.object({
+        name: z.string().describe("Owner's name"),
+        email: z.string().describe("Owner's email"),
+        phone: z.string().describe("Owner's phone number"),
+        message: z.string().describe("A message from the owner"),
+        shareName: z.boolean().describe("Whether to share the owner's name"),
+        shareEmail: z.boolean().describe("Whether to share the owner's email"),
+        sharePhone: z.boolean().describe("Whether to share the owner's phone"),
+      }),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, ownerInfo, id }) =>
+      updateOwnerInfo(thingName, ownerInfo, id),
+    ),
   );
 
   const transport = new StdioServerTransport();

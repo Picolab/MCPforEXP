@@ -134,6 +134,19 @@ async function scanTag(tagId, domain, id) {
   }
 }
 
+async function updateOwnerInfo(thingName, ownerInfo, id) {
+  try {
+    const data = await api.updateOwnerInfo(thingName, ownerInfo);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "event", domain: "safeandmine", type: "update_owner_info" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
 module.exports = {
   manifold_getThings,
   manifold_create_thing,
@@ -141,4 +154,5 @@ module.exports = {
   manifold_change_thing_name,
   safeandmine_newtag,
   scanTag,
+  updateOwnerInfo,
 };

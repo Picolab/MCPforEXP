@@ -191,6 +191,44 @@ const scanTag = tool({
   outputDescription: "Returns the owner info for the scanned tag.",
 });
 
+const updateOwnerInfo = tool({
+  name: "updateOwnerInfo",
+  description: "Update owner info for a thing.",
+  properties: {
+    id: TOOL_COMMON_PROPS.id,
+    thingName: {
+      type: "string",
+      description: "The name of the thing to update.",
+    },
+    ownerInfo: {
+      type: "object",
+      description: "The owner information to update.",
+      properties: {
+        name: { type: "string", description: "The owner's name." },
+        email: { type: "string", description: "The owner's email." },
+        phone: { type: "string", description: "The owner's phone number." },
+        message: { type: "string", description: "A message about the owner." },
+        shareName: {
+          type: "boolean",
+          description: "Whether to share the owner's name.",
+        },
+        sharePhone: {
+          type: "boolean",
+          description: "Whether to share the owner's phone number.",
+        },
+        shareEmail: {
+          type: "boolean",
+          description: "Whether to share the owner's email.",
+        },
+      },
+      required: [],
+    },
+  },
+  required: ["thingName", "ownerInfo"],
+  outputDescription:
+    "Event result (typically empty data object, check meta.httpStatus for success)",
+});
+
 module.exports = {
   tools: [
     manifold_getThings,
@@ -199,5 +237,6 @@ module.exports = {
     manifold_change_thing_name,
     safeandmine_newtag,
     scanTag,
+    updateOwnerInfo,
   ],
 };
