@@ -26,6 +26,7 @@ const {
   manifold_remove_thing,
   manifold_change_thing_name,
   safeandmine_newtag,
+  scanTag,
 } = require("../backend/krl-operation.js");
 
 function asJsonContent(obj) {
@@ -99,6 +100,17 @@ async function main() {
     toolHandler(({ thingName, tagID, domain, id }) =>
       safeandmine_newtag(thingName, tagID, domain, id),
     ),
+  );
+
+  server.tool(
+    "scanTag",
+    "Scan a SquareTag by its ID and domain to see if it's registered to any Pico.",
+    {
+      tagID: z.string().describe("The alphanumeric tag ID"),
+      domain: z.string().default("sqtg"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ tagID, domain, id }) => scanTag(tagID, domain, id)),
   );
 
   const transport = new StdioServerTransport();

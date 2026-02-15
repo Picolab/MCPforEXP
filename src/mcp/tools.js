@@ -175,6 +175,22 @@ const safeandmine_newtag = tool({
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
+const scanTag = tool({
+  name: "scanTag",
+  description: "Get owner info from a SquareTag scan.",
+  properties: {
+    id: TOOL_COMMON_PROPS.id,
+    tagID: { type: "string", description: "The alphanumeric tag ID." },
+    domain: {
+      type: "string",
+      description: "Tag domain/type (e.g., sqtg).",
+      default: "sqtg",
+    },
+  },
+  required: ["tagID"],
+  outputDescription: "Returns the owner info for the scanned tag.",
+});
+
 module.exports = {
   tools: [
     manifold_getThings,
@@ -182,5 +198,6 @@ module.exports = {
     manifold_remove_thing,
     manifold_change_thing_name,
     safeandmine_newtag,
+    scanTag,
   ],
 };

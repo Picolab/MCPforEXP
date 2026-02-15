@@ -121,10 +121,24 @@ async function safeandmine_newtag(thingName, tagID, domain, id) {
   }
 }
 
+async function scanTag(tagId, domain, id) {
+  try {
+    const data = await api.scanTag(tagId, domain);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "query", domain: "safeandmine", type: "scan_tag" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
 module.exports = {
   manifold_getThings,
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,
   safeandmine_newtag,
+  scanTag,
 };

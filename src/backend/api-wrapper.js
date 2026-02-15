@@ -236,9 +236,12 @@ async function setSquareTag(thingName, tagId, domain = "sqtg") {
  */
 async function scanTag(tagId, domain = "sqtg") {
   try {
-    const rootECI = getRootECI();
-    const tagRegistryECI = getChildEciByName(rootECI, "Tag Registry");
-    const registrationECI = getECIByTag(tagRegistryECI, "registration");
+    const rootECI = await getRootECI();
+    console.log("Root ECI:", rootECI);
+    const tagRegistryECI = await getChildEciByName(rootECI, "Tag Registry");
+    console.log("Tag Registry ECI:", tagRegistryECI);
+    const registrationECI = await getECIByTag(tagRegistryECI, "registration");
+    console.log("Tag Registration Channel ECI:", registrationECI);
 
     const scanTagResponse = await fetch(
       `http://localhost:3000/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`,
@@ -249,7 +252,14 @@ async function scanTag(tagId, domain = "sqtg") {
       },
     );
 
+    if (!scanTagResponse.ok) {
+      throw new Error(
+        `HTTP Error (${scanTagResponse.status}): ${await scanTagResponse.text()}`,
+      );
+    }
+
     const scanTagData = await scanTagResponse.json();
+    console.log("scanTagData:", scanTagData);
     const tagECI = scanTagData.did;
 
     const infoResponse = await fetch(
@@ -260,6 +270,12 @@ async function scanTag(tagId, domain = "sqtg") {
         body: JSON.stringify({ info: "" }),
       },
     );
+
+    if (!infoResponse.ok) {
+      throw new Error(
+        `HTTP Error (${infoResponse.status}): ${await infoResponse.text()}`,
+      );
+    }
 
     const infoData = await infoResponse.json();
 
