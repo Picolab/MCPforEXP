@@ -229,6 +229,41 @@ const updateOwnerInfo = tool({
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
+const addNote = tool({
+  name: "addNote",
+  description: "Add a note to a thing.",
+  properties: {
+    id: TOOL_COMMON_PROPS.id,
+    thingName: {
+      type: "string",
+      description: "The name of the thing to add a note to.",
+    },
+    title: { type: "string", description: "The title of the note." },
+    content: { type: "string", description: "The content of the note." },
+  },
+  required: ["thingName", "title", "content"],
+  outputDescription:
+    "Event result (typically empty data object, check meta.httpStatus for success)",
+});
+
+const getNote = tool({
+  name: "getNote",
+  description: "Get a note from a thing by title.",
+  properties: {
+    id: TOOL_COMMON_PROPS.id,
+    thingName: {
+      type: "string",
+      description: "The name of the thing to get a note from.",
+    },
+    title: {
+      type: "string",
+      description: "The title of the note to retrieve.",
+    },
+  },
+  required: ["thingName", "title"],
+  outputDescription: "Returns the content of the requested note.",
+});
+
 module.exports = {
   tools: [
     manifold_getThings,
@@ -238,5 +273,7 @@ module.exports = {
     safeandmine_newtag,
     scanTag,
     updateOwnerInfo,
+    addNote,
+    getNote,
   ],
 };

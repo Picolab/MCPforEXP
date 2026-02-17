@@ -116,18 +116,22 @@ async function createThing(thingName) {
 }
 
 /**
- * @param {*} eci - The eci of the object of the thing in manifold (the thing with the journal app)
+ * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
  * @param {*} title - The title of the note that is being attached
  * @param {*} content - The content of the note attached to the title
  *
- * This function, given the eci of the object, the title and the content attaches said note to an object.
+ * This function, given the name of the thing, the title and the content attaches said note to an object.
  * Before it can attach the note, however, it needs to make sure that the journal app is installed.
  * If it's not installed, it tries to add the journal app.
  */
-async function addNote(eci, title, content) {
+async function addNote(thingName, title, content) {
   try {
+    const manifoldEci = await traverseHierarchy();
+    const engineEci = await getChildEciByName(manifoldEci, thingName);
+    const thingEci = await getECIByTag(engineEci, "manifold");
+
     const rid = "io.picolabs.journal";
-    const isInstalled = await picoHasRuleset(eci, rid);
+    const isInstalled = await picoHasRuleset(thingEci, rid);
 
     if (!isInstalled) {
       console.log("Installing journal...");
@@ -135,13 +139,13 @@ async function addNote(eci, title, content) {
         __dirname,
         `../../Manifold-api/${rid}.krl`,
       );
-      await installRuleset(eci, pathToFileURL(absolutePath).href);
+      await installRuleset(thingEci, pathToFileURL(absolutePath).href);
       await new Promise((r) => setTimeout(r, 10000));
     }
 
     // Send API request
     const response = await fetch(
-      `http://localhost:3000/c/${eci}/event-wait/journal/new_entry`,
+      `http://localhost:3000/c/${thingEci}/event-wait/journal/new_entry`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,6 +154,7 @@ async function addNote(eci, title, content) {
     );
     const data = await response.json();
     console.log("Data is", data);
+    return data;
   } catch (err) {
     console.error("Error in addNote:", err);
     throw err;
@@ -157,16 +162,20 @@ async function addNote(eci, title, content) {
 }
 
 /**
- * @param {*} eci - The eci of the object of the thing in manifold (the thing with the journal app)
+ * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
  * @param {*} title - The title of the note that is being attached
  *
- * This function, given the title of the note returns the note with that title.
+ * This function, given the name of the thing and the title of the note returns the note with that title.
  */
 
-async function getNote(eci, title) {
+async function getNote(thingName, title) {
   try {
+    const manifoldEci = await traverseHierarchy();
+    const engineEci = await getChildEciByName(manifoldEci, thingName);
+    const thingEci = await getECIByTag(engineEci, "manifold");
+
     const rid = "io.picolabs.journal";
-    const isInstalled = await picoHasRuleset(eci, rid);
+    const isInstalled = await picoHasRuleset(thingEci, rid);
 
     if (!isInstalled) {
       // If trying to get note and this isn't installed then there's no point in installing it to get a note. It's impossible.
@@ -174,7 +183,7 @@ async function getNote(eci, title) {
     }
 
     const response = await fetch(
-      `http://localhost:3000/c/${eci}/event-wait/journal/getEntry`,
+      `http://localhost:3000/c/${thingEci}/query/io.picolabs.journal/getEntry`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,8 +191,15 @@ async function getNote(eci, title) {
       },
     );
 
+    if (!response.ok) {
+      throw new Error(
+        `HTTP Error (${response.status}): ${await response.text()}`,
+      );
+    }
+
     const data = await response.json();
     console.log("Data is", data);
+    return data;
   } catch (err) {
     console.error("Error in getNote: ", err);
     throw err;
