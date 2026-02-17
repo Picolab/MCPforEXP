@@ -116,11 +116,11 @@ async function createThing(thingName) {
 }
 
 /**
- * @param {*} thingName - The name of the Thing Pico to add a note to.
+ * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
  * @param {*} title - The title of the note that is being attached
  * @param {*} content - The content of the note attached to the title
  *
- * This function, given the eci of the object, the title and the content attaches said note to an object.
+ * This function, given the name of the thing, the title and the content attaches said note to an object.
  * Before it can attach the note, however, it needs to make sure that the journal app is installed.
  * If it's not installed, it tries to add the journal app.
  */
@@ -154,6 +154,7 @@ async function addNote(thingName, title, content) {
     );
     const data = await response.json();
     console.log("Data is", data);
+    return data;
   } catch (err) {
     console.error("Error in addNote:", err);
     throw err;
@@ -161,10 +162,10 @@ async function addNote(thingName, title, content) {
 }
 
 /**
- * @param {*} eci - The eci of the object of the thing in manifold (the thing with the journal app)
+ * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
  * @param {*} title - The title of the note that is being attached
  *
- * This function, given the title of the note returns the note with that title.
+ * This function, given the name of the thing and the title of the note returns the note with that title.
  */
 
 async function getNote(thingName, title) {
@@ -190,8 +191,15 @@ async function getNote(thingName, title) {
       },
     );
 
+    if (!response.ok) {
+      throw new Error(
+        `HTTP Error (${response.status}): ${await response.text()}`,
+      );
+    }
+
     const data = await response.json();
     console.log("Data is", data);
+    return data;
   } catch (err) {
     console.error("Error in getNote: ", err);
     throw err;

@@ -135,7 +135,7 @@ test("create thing and add tags with unique identifiers", async () => {
 //     throw error;
 //   }
 // });
-test(scanTag, async () => {
+test("Scan tag", async () => {
   const response = await scanTag("URMOM", "sqtg");
   console.log("scanTag response:", response);
   expect(response).toBeDefined();
