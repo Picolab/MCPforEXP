@@ -62,12 +62,10 @@ async function setupRegistry() {
       }
 
       requestEndpoint = `/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`;
-      requestBody = {
-        method: "GET",
-        headers: { "Content-Type": "application-json" },
-      };
 
-      const status = await sendAPICall(requestEndpoint, requestBody);
+      const response = await sendAPICall(requestEndpoint, true, {});
+      const status = response.json();
+
       if (status && status.owner_eci) {
         console.log("\n Bootstrap Complete.");
         return status;
@@ -122,7 +120,11 @@ async function getChildEciByName(parentEci, childName) {
       headers: { "Content-Type": "application/json" },
     };
 
-    const response = await sendAPICall(parentRequestEndpoint, false, parentRequestBody);
+    const response = await sendAPICall(
+      parentRequestEndpoint,
+      false,
+      parentRequestBody,
+    );
     const data = await response.json();
     console.log("CHILD ECI RESPONSE: ", data);
     const childEcis = data.children || [];
@@ -137,7 +139,11 @@ async function getChildEciByName(parentEci, childName) {
           headers: { "Content-Type": "application/json" },
         };
 
-        const response2 = await sendAPICall(requestEndpoint, false, requestBody);
+        const response2 = await sendAPICall(
+          requestEndpoint,
+          false,
+          requestBody,
+        );
         const actualName = await response2.json();
 
         console.log("ACTUAL NAME :", actualName);
@@ -176,12 +182,8 @@ async function getChildEciByName(parentEci, childName) {
 async function getECIByTag(owner_eci, tag) {
   try {
     const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`;
-    const requestBody = {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    };
-
-    const data = await sendAPICall(requestEndpoint, requestBody);
+    const response = await sendAPICall(requestEndpoint, true, {});
+    const data = await response.json();
     const channels = data.channels;
 
     for (let channel of channels) {
@@ -210,7 +212,7 @@ async function getManifoldECI(owner_eci) {
       headers: { "Content-Type": "application/json" },
     };
 
-    const data = await sendAPICall(requestEndpoint, requestBody);
+    const data = await sendAPICall(requestEndpoint, false, requestBody);
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
@@ -238,7 +240,9 @@ async function installRuleset(eci, filePath) {
       body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
     };
 
-    const data = await sendAPICall(requestEndpoint, requestBody);
+    const response = await sendAPICall(requestEndpoint, false, requestBody);
+    const data = await response.json();
+    console.log("INSTALL RULESET: ", data);
   } catch (error) {
     console.error("Fetch error:", error);
   }
@@ -283,11 +287,9 @@ async function installOwner(eci) {
 async function picoHasRuleset(picoEci, rid) {
   try {
     const requestEndpoint = `/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`;
-    const requestBody = {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    };
-    const data = await sendAPICall(requestEndpoint, requestBody);
+    const response = await sendAPICall(requestEndpoint, true, {});
+
+    const data = await response.json();
     for (const ruleset of data.rulesets) {
       if (ruleset.rid === rid) return true;
     }
@@ -330,7 +332,10 @@ async function checkENVVariable(variable, variableName) {
  *
  */
 async function sendAPICall(requestEndpoint, simpleRequest, requestBody) {
-  const baseURL = await checkENVVariable(process.env.PICO_ENGINE_BASE_URL, "PICO_ENGINE_BASE_URL");
+  const baseURL = await checkENVVariable(
+    process.env.PICO_ENGINE_BASE_URL,
+    "PICO_ENGINE_BASE_URL",
+  );
   const requestURL = baseURL + requestEndpoint;
   console.log("RequestURL: ", requestURL);
 
@@ -350,13 +355,13 @@ async function sendAPICall(requestEndpoint, simpleRequest, requestBody) {
   } else {
     try {
       response = await fetch(requestURL, {
-      method: requestBody.method,
-      headers: requestBody.headers
-    });
-    if (!response.ok) {
+        method: requestBody.method,
+        headers: requestBody.headers,
+      });
+      if (!response.ok) {
         throw new Error(`${response.status}`);
       }
-    } catch (err)  {
+    } catch (err) {
       console.log("Request with body failed: ", err);
     }
   }
@@ -364,14 +369,11 @@ async function sendAPICall(requestEndpoint, simpleRequest, requestBody) {
   return response;
 }
 
-
 async function checkError(data) {
   if ("error" in data) {
     throw new Error(`Error from ${requestURL}: ${JSON.stringify(data)}`);
   }
 }
-
-
 
 module.exports = {
   getRootECI,
@@ -383,5 +385,6 @@ module.exports = {
   setupRegistry,
   getECIByTag,
   getChildEciByName,
+  checkENVVariable,
   sendAPICall,
 };
