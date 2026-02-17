@@ -166,7 +166,7 @@ async function getNote(eci, title) {
     }
 
     const response = await fetch(
-      `http://localhost:3000/c/${eci}/event-wait/journal/get_entry`,
+      `http://localhost:3000/c/${eci}/event-wait/journal/getEntry`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
