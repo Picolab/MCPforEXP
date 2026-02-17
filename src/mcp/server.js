@@ -28,6 +28,8 @@ const {
   safeandmine_newtag,
   scanTag,
   updateOwnerInfo,
+  addNote,
+  getNote,
 } = require("../backend/krl-operation.js");
 
 function asJsonContent(obj) {
@@ -133,6 +135,33 @@ async function main() {
     toolHandler(({ thingName, ownerInfo, id }) =>
       updateOwnerInfo(thingName, ownerInfo, id),
     ),
+  );
+
+  server.tool(
+    "addNote",
+    "Add a note to a thing pico's journal.",
+    {
+      thingName: z.string().describe("The name of the thing to add a note to"),
+      title: z.string().describe("The title of the note"),
+      content: z.string().describe("The content of the note"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, title, content, id }) =>
+      addNote(thingName, title, content, id),
+    ),
+  );
+
+  server.tool(
+    "getNote",
+    "Get a note from a thing pico's journal.",
+    {
+      thingName: z
+        .string()
+        .describe("The name of the thing to get a note from"),
+      title: z.string().describe("The title of the note to retrieve"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, title, id }) => getNote(thingName, title, id)),
   );
 
   const transport = new StdioServerTransport();

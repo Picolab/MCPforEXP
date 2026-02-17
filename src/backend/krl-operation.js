@@ -147,6 +147,32 @@ async function updateOwnerInfo(thingName, ownerInfo, id) {
   }
 }
 
+async function addNote(thingName, title, content, id) {
+  try {
+    const data = await api.addNote(thingName, title, content);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "event", domain: "journal", type: "add_note" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
+async function getNote(thingName, title, id) {
+  try {
+    const data = await api.getNote(thingName, title);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "query", domain: "journal", type: "get_note" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
 module.exports = {
   manifold_getThings,
   manifold_create_thing,
@@ -155,4 +181,6 @@ module.exports = {
   safeandmine_newtag,
   scanTag,
   updateOwnerInfo,
+  addNote,
+  getNote,
 };

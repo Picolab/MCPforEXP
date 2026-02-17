@@ -166,7 +166,7 @@ async function addNote(thingName, title, content) {
  * This function, given the name of the thing and the title of the note returns the note with that title.
  */
 
-async function getNote(eci, title) {
+async function getNote(thingName, title) {
   try {
     const manifoldEci = await traverseHierarchy();
     const thingEci = await getChildEciByName(manifoldEci, thingName);
@@ -188,8 +188,15 @@ async function getNote(eci, title) {
       },
     );
 
+    if (!response.ok) {
+      throw new Error(
+        `HTTP Error (${response.status}): ${await response.text()}`,
+      );
+    }
+
     const data = await response.json();
     console.log("Data is", data);
+    return data;
   } catch (err) {
     console.error("Error in getNote: ", err);
     throw err;
