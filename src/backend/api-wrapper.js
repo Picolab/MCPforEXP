@@ -127,7 +127,8 @@ async function createThing(thingName) {
 async function addNote(thingName, title, content) {
   try {
     const manifoldEci = await traverseHierarchy();
-    const thingEci = await getChildEciByName(manifoldEci, thingName);
+    const engineEci = await getChildEciByName(manifoldEci, thingName);
+    const thingEci = await getECIByTag(engineEci, "manifold");
 
     const rid = "io.picolabs.journal";
     const isInstalled = await picoHasRuleset(thingEci, rid);
@@ -153,6 +154,7 @@ async function addNote(thingName, title, content) {
     );
     const data = await response.json();
     console.log("Data is", data);
+    return data;
   } catch (err) {
     console.error("Error in addNote:", err);
     throw err;
@@ -169,7 +171,8 @@ async function addNote(thingName, title, content) {
 async function getNote(thingName, title) {
   try {
     const manifoldEci = await traverseHierarchy();
-    const thingEci = await getChildEciByName(manifoldEci, thingName);
+    const engineEci = await getChildEciByName(manifoldEci, thingName);
+    const thingEci = await getECIByTag(engineEci, "manifold");
 
     const rid = "io.picolabs.journal";
     const isInstalled = await picoHasRuleset(thingEci, rid);
@@ -180,7 +183,7 @@ async function getNote(thingName, title) {
     }
 
     const response = await fetch(
-      `http://localhost:3000/c/${thingEci}/event-wait/journal/getEntry`,
+      `http://localhost:3000/c/${thingEci}/query/io.picolabs.journal/getEntry`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
