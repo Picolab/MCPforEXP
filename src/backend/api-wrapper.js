@@ -72,6 +72,14 @@ async function listThings() {
  * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
 async function createThing(thingName) {
+  //Check if thingName already exists in manifold. If so, throw error to avoid duplicates.
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      throw new Error(`Thing with name "${thingName}" already exists`);
+    }
+  }
+
   const manifoldEci = await traverseHierarchy();
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
