@@ -115,8 +115,80 @@ async function createThing(thingName) {
   }
 }
 
-// addNote(eci, title, content)
-async function addNote(eci, title, content) {}
+/**
+ * @param {*} eci - The eci of the object of the thing in manifold (the thing with the journal app)
+ * @param {*} title - The title of the note that is being attached
+ * @param {*} content - The content of the note attached to the title
+ *
+ * This function, given the eci of the object, the title and the content attaches said note to an object.
+ * Before it can attach the note, however, it needs to make sure that the journal app is installed.
+ * If it's not installed, it tries to add the journal app.
+ */
+async function addNote(eci, title, content) {
+  try {
+    const rid = "io.picolabs.journal";
+    const isInstalled = await picoHasRuleset(eci, rid);
+
+    if (!isInstalled) {
+      console.log("Installing journal...");
+      const absolutePath = path.join(
+        __dirname,
+        `../../Manifold-api/${rid}.krl`,
+      );
+      await installRuleset(eci, pathToFileURL(absolutePath).href);
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+
+    // Send API request
+    const response = await fetch(
+      `http://localhost:3000/c/${eci}/event-wait/journal/new_entry`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title, content: content }),
+      },
+    );
+    const data = await response.json();
+    console.log("Data is", data);
+  } catch (err) {
+    console.error("Error in addNote:", err);
+    throw err;
+  }
+}
+
+/**
+ * @param {*} eci - The eci of the object of the thing in manifold (the thing with the journal app)
+ * @param {*} title - The title of the note that is being attached
+ *
+ * This function, given the title of the note returns the note with that title.
+ */
+
+async function getNote(eci, title) {
+  try {
+    const rid = "io.picolabs.journal";
+    const isInstalled = await picoHasRuleset(eci, rid);
+
+    if (!isInstalled) {
+      // If trying to get note and this isn't installed then there's no point in installing it to get a note. It's impossible.
+      throw new Error("Error in getNote: journal ruleset not installed.");
+    }
+
+    const response = await fetch(
+      `http://localhost:3000/c/${eci}/event-wait/journal/getEntry`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title }),
+      },
+    );
+
+    const data = await response.json();
+    console.log("Data is", data);
+  } catch (err) {
+    console.error("Error in getNote: ", err);
+    throw err;
+  }
+}
 
 /**
  * Removes a Thing Pico by it's name.
@@ -387,6 +459,7 @@ module.exports = {
   listThings,
   createThing,
   addNote,
+  getNote,
   setSquareTag,
   scanTag,
   updateOwnerInfo,
