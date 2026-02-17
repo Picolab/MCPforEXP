@@ -1,407 +1,28 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { callKrl } = require("./krl-client");
-
-/*
-    getRootECI()
-    Returns the ECI of the UI pico as a javascript object--currently hardcoded to http://localhost:3000.
-*/
-async function getRootECI() {
-  try {
-    const response = await fetch(`http://localhost:3000/api/ui-context`);
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.eci;
-  } catch (error) {
-    console.error("Fetch error:", error);
-  }
-}
-
-async function setupRegistry() {
-  const rootEci = await getRootECI();
-  const filePath = path.resolve(
-    __dirname,
-    "../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
-  );
-  const fileUrl = pathToFileURL(filePath).href;
-
-  await installRuleset(rootEci, fileUrl);
-  console.log(
-    "Bootstrap ruleset installed. Waiting for channel and completion...",
-  );
-
-  let bootstrapEci = null;
-  const maxAttempts = 30;
-
-  console.log("Waiting for bootstrap to complete (this may take up to 30s):");
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      // Search for the authorized "bootstrap" channel
-      if (!bootstrapEci) {
-        const picoResp = await fetch(
-          `http://127.0.0.1:3000/c/${rootEci}/query/io.picolabs.pico-engine-ui/pico`,
-        );
-
-        if (picoResp.ok) {
-          const data = await picoResp.json();
-          if (data && data.channels) {
-            const chan = data.channels.find(
-              (c) =>
-                c.name === "bootstrap" ||
-                (c.tags && c.tags.includes("bootstrap")),
-            );
-
-            if (chan && chan.id) {
-              bootstrapEci = chan.id;
-              console.log(`\nBootstrap channel found: ${bootstrapEci}`);
-            }
-          }
-        }
-      }
-
-      // If we found the channel, check if the full process is done
-      if (bootstrapEci) {
-        const resp = await fetch(
-          `http://127.0.0.1:3000/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`,
-        );
-
-        if (resp.ok) {
-          const status = await resp.json();
-          if (status && status.owner_eci) {
-            return status;
-          }
-        }
-      }
-    } catch (error) {
-      // Silently retry during the 30-second window
-    }
-
-    process.stdout.write("."); // Visual progress
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-
-  throw new Error(
-    "Bootstrap timed out before reaching the 'Owner' completion step.",
-  );
-}
-
-async function getInitializationECI(owner_eci) {
-  try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
-    const channels = data.channels;
-
-    for (let channel of channels) {
-      if (channel.tags.includes("initialization")) {
-        return channel.id;
-      }
-    }
-    throw new Error("Initialization ECI not found!");
-  } catch (error) {
-    console.error("Fetch error:", error);
-  }
-}
-
-/**
- * getChildEciByName(parentEci, childName)
- * Queries a parent Pico to find the ECI of a child Pico with a specific name.
- * Uses the engine-ui/pico query for authorized access.
- */
-async function getChildEciByName(parentEci, childName) {
-  try {
-    const url = `http://127.0.0.1:3000/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
-    const response = await fetch(url);
-    if (!response.ok)
-      throw new Error(`Failed to query parent: ${response.status}`);
-
-    const data = await response.json();
-    const childEcis = data.children || [];
-
-    // We must query each child individually to find the one with the matching name
-    for (const childEci of childEcis) {
-      try {
-        const nameUrl = `http://127.0.0.1:3000/c/${childEci}/query/io.picolabs.pico-engine-ui/name`;
-        const nameResp = await fetch(nameUrl);
-
-        if (nameResp.ok) {
-          const actualName = await nameResp.json();
-          if (actualName === childName) {
-            return childEci; // Match found!
-          }
-        }
-      } catch (err) {
-        // Skip a specific child if it's currently unreachable/initializing
-        continue;
-      }
-    }
-
-    console.log("Returning null from getChildEciByName");
-    return null; // No match found after checking all children
-  } catch (error) {
-    console.error(
-      `Error in getChildEciByName for "${childName}":`,
-      error.message,
-    );
-    throw error;
-  }
-}
-
-async function getECIByTag(owner_eci, tag) {
-  try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
-    const channels = data.channels;
-
-    for (let channel of channels) {
-      if (channel.tags.includes(tag)) {
-        return channel.id;
-      }
-    }
-    throw new Error(`Child ECI with tag "${tag}" not found!`);
-  } catch (error) {
-    console.error("Fetch error:", error);
-  }
-}
-
-/*
-    getManifoldECI(owner_eci)
-    Given a valid (initialization) ECI for a manifold_owner pico, scans its children and returns the child ECI of the manifold pico
-*/
-async function getManifoldECI(owner_eci) {
-  try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Fetch error:", error);
-  }
-}
-
-/**
- * Uniform KRL operations (events/queries) for MCP integration.
- * These return the standard envelope from `callKrl`:
- * { id, ok, data, error?, meta }
- */
-
-// manifold_pico queries
-async function manifold_getThings(eci, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "query", rid: "io.picolabs.manifold_pico", name: "getThings" },
-    args: {},
-  });
-}
-
-async function manifold_isAChild(eci, picoID, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "query", rid: "io.picolabs.manifold_pico", name: "isAChild" },
-    args: { picoID },
-  });
-}
-
-// manifold_pico events
-async function manifold_create_thing(eci, name, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "manifold", type: "create_thing" },
-    args: { name },
-  });
-}
-
-async function manifold_remove_thing(eci, picoID, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "manifold", type: "remove_thing" },
-    args: { picoID },
-  });
-}
-
-async function manifold_change_thing_name(eci, picoID, changedName, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "manifold", type: "change_thing_name" },
-    args: { picoID, changedName },
-  });
-}
-
-// safeandmine (installed on thing picos) queries
-async function safeandmine_getInformation(eci, info, id) {
-  // `info` is optional in the KRL; if omitted it returns the whole map.
-  const args = {};
-  if (info !== undefined) args.info = info;
-  return callKrl({
-    id,
-    target: { eci },
-    op: {
-      kind: "query",
-      rid: "io.picolabs.safeandmine",
-      name: "getInformation",
-    },
-    args,
-  });
-}
-
-async function safeandmine_getTags(eci, id) {
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "query", rid: "io.picolabs.safeandmine", name: "getTags" },
-    args: {},
-  });
-}
-
-// safeandmine events
-async function safeandmine_update(
-  eci,
-  { name, email, phone, message, shareName, shareEmail, sharePhone } = {},
-  id,
-) {
-  const args = {};
-  if (name !== undefined) args.name = name;
-  if (email !== undefined) args.email = email;
-  if (phone !== undefined) args.phone = phone;
-  if (message !== undefined) args.message = message;
-  if (shareName !== undefined) args.shareName = !!shareName;
-  if (shareEmail !== undefined) args.shareEmail = !!shareEmail;
-  if (sharePhone !== undefined) args.sharePhone = !!sharePhone;
-
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "safeandmine", type: "update" },
-    args,
-  });
-}
-
-async function safeandmine_delete(eci, toDelete, id) {
-  const args = {};
-  if (toDelete !== undefined) args.toDelete = toDelete;
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "safeandmine", type: "delete" },
-    args,
-  });
-}
-
-async function safeandmine_newtag(eci, tagID, domain, id) {
-  // KRL event is `new_tag`
-  return callKrl({
-    id,
-    target: { eci },
-    op: { kind: "event", domain: "safeandmine", type: "new_tag" },
-    args: { tagID, domain },
-  });
-}
-
-/*
-    installRuleset(eci, filePath)
-    Given a valid engine/UI ECI and KRL filepath, installs the KRL ruleset.
-    Note: filePath requires the same "file:///..." convention as the pico-engine UI
-*/
-async function installRuleset(eci, filePath) {
-  try {
-    // Parses filePath to get ruleset id
-    const rid = filePath.split("/").at(-1).replace(".krl", "");
-    if (await picoHasRuleset(eci, rid)) return;
-
-    // I spent about an hour on a bug here before I realized that the header was missing from the POST section here.
-    const response = await fetch(
-      `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-  } catch (error) {
-    console.error("Fetch error:", error);
-  }
-}
-
-/*
-    installOwner(eci)
-    Given a valid engine/UI ECI (and run from the root of the repo), automatically finds and installs the manifold_owner ruleset.
-*/
-async function installOwner(eci) {
-  try {
-    const cwd = process.cwd();
-    const rootFolderName = "MCPforEXP";
-    const rootIndex = cwd.indexOf(rootFolderName);
-    const rootPath = cwd.slice(0, rootIndex + rootFolderName.length);
-
-    // There seems to be some issue with the way "/" and "\" interact with the api request
-    // This should normalize them to all be the same and it should act as a path.
-    const rulesetPath = path.join(
-      rootPath,
-      "Manifold-api",
-      "io.picolabs.manifold_owner.krl",
-    );
-
-    const fileUrl = "file:///" + rulesetPath.split(path.sep).join("/");
-    await installRuleset(eci, fileUrl);
-  } catch (error) {
-    console.error(error);
-  }
-}
+const {
+  getRootECI,
+  picoHasRuleset,
+  getECIByTag,
+  getChildEciByName,
+  traverseHierarchy,
+  installRuleset,
+} = require("./utility.js");
 
 async function main() {
-  const rootECI = await getRootECI();
-  const ownerECI = await getChildEciByName(rootECI, "Owner");
-  const ownerInitializationECI = await getInitializationECI(ownerECI);
-  const manifoldECI = await getManifoldECI(ownerInitializationECI);
-  console.log(manifoldECI);
+  console.log(await traverseHierarchy());
 }
 
 if (require.main === module) {
   main();
 }
-// main();
 
-/*
-  listThings(manifold_eci)
-  returns the manifold's things as the following JSON object:
-  {
+/**
+ * Automatically determines the Manifold Pico and retrieves a detailed map of all it's "Things".
+ * @async
+ * @function listThings
+ * @returns {Promise<Object<string, Object>>} A map where keys are Pico IDs and values are metadata objects:
+ * {
     "{picoID}": {
       "Rx_role": manifold pico's subscription role,
       "Tx_role": thing's subscription role,
@@ -411,14 +32,16 @@ if (require.main === module) {
       "name": user-input name string,
       "subID": ID of the manifold-thing subscription,
       "picoID": thing's #system #self ECI,
-      "color": color in the pico-engine UI,
-      "picoId": thing's #system #self ECI
-    },
-    ...
-  }
-*/
-async function listThings(manifold_eci) {
+      "color": color in the pico-engine UI
+      },
+ * }
+ * @throws {Error} If the engine query fails.
+ */
+async function listThings() {
   try {
+    //Get the manifold channel ECI by traversing the pico hierarchy
+    const manifold_eci = await traverseHierarchy();
+
     const response = await fetch(
       `http://localhost:3000/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`,
       {
@@ -440,12 +63,24 @@ async function listThings(manifold_eci) {
 }
 
 /**
- * createThing(manifoldEci, thingName)
- * Triggers the creation of a new Thing and waits for the engine to finish.
+ * Triggers the creation of a new "Thing" Pico within the Manifold system.
+ * Uses an event-wait pattern and polls for discovery by name.
+ * @async
+ * @function createThing
+ * @param {string} thingName - The display name for the new child Pico.
+ * @returns {Promise<string>} The ECI of the newly created Thing.
+ * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
-async function createThing(manifoldEci, thingName) {
-  // console.log(`Creating Thing: "${thingName}"...`);
+async function createThing(thingName) {
+  //Check if thingName already exists in manifold. If so, throw error to avoid duplicates.
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      throw new Error(`Thing with name "${thingName}" already exists`);
+    }
+  }
 
+  const manifoldEci = await traverseHierarchy();
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
@@ -462,14 +97,10 @@ async function createThing(manifoldEci, thingName) {
     }
 
     const data = await response.json();
-    // console.log("Creation event accepted. Searching for new child Pico...");
 
-    // Since the ECI isn't in the response, we poll for the child by name
-    // Try for 10 seconds to give the engine time to finish initialization
     for (let i = 0; i < 10; i++) {
       const thingEci = await getChildEciByName(manifoldEci, thingName);
       if (thingEci) {
-        //console.log(`✅ Thing "${thingName}" found! ECI: ${thingEci}`);
         console.log(thingEci);
         return thingEci;
       }
@@ -484,20 +115,172 @@ async function createThing(manifoldEci, thingName) {
   }
 }
 
-// addNote(eci, title, content)
-async function addNote(eci, title, content) {}
-
-// addTag(eci, tagID, domain)
-async function addTag(eci, tagID, domain) {}
-
-// listThingsByTag(eci, tag)
-async function listThingsByTag(eci, tag) {}
-
-// setSquareTag(eci, tagId, domain = "sqtg")
-async function setSquareTag(eci, tagId, domain = "sqtg") {
+/**
+ * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
+ * @param {*} title - The title of the note that is being attached
+ * @param {*} content - The content of the note attached to the title
+ *
+ * This function, given the name of the thing, the title and the content attaches said note to an object.
+ * Before it can attach the note, however, it needs to make sure that the journal app is installed.
+ * If it's not installed, it tries to add the journal app.
+ */
+async function addNote(thingName, title, content) {
   try {
+    const manifoldEci = await traverseHierarchy();
+    const engineEci = await getChildEciByName(manifoldEci, thingName);
+    const thingEci = await getECIByTag(engineEci, "manifold");
+
+    const rid = "io.picolabs.journal";
+    const isInstalled = await picoHasRuleset(engineEci, rid);
+
+    if (!isInstalled) {
+      console.log("Installing journal...");
+      const absolutePath = path.join(
+        __dirname,
+        `../../Manifold-api/${rid}.krl`,
+      );
+      await installRuleset(engineEci, pathToFileURL(absolutePath).href);
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+
+    // Send API request
+    const response = await fetch(
+      `http://localhost:3000/c/${thingEci}/event-wait/journal/new_entry`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title, content: content }),
+      },
+    );
+    const data = await response.json();
+    console.log("Data is", data);
+    return data;
+  } catch (err) {
+    console.error("Error in addNote:", err);
+    throw err;
+  }
+}
+
+/**
+ * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
+ * @param {*} title - The title of the note that is being attached
+ *
+ * This function, given the name of the thing and the title of the note returns the note with that title.
+ */
+
+async function getNote(thingName, title) {
+  try {
+    const manifoldEci = await traverseHierarchy();
+    const engineEci = await getChildEciByName(manifoldEci, thingName);
+    const thingEci = await getECIByTag(engineEci, "manifold");
+
+    const rid = "io.picolabs.journal";
+    const isInstalled = await picoHasRuleset(engineEci, rid);
+
+    if (!isInstalled) {
+      // If trying to get note and this isn't installed then there's no point in installing it to get a note. It's impossible.
+      throw new Error("Error in getNote: journal ruleset not installed.");
+    }
+
+    const response = await fetch(
+      `http://localhost:3000/c/${thingEci}/query/io.picolabs.journal/getEntry`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP Error (${response.status}): ${await response.text()}`,
+      );
+    }
+
+    const data = await response.json();
+    console.log("Data is", data);
+    return data;
+  } catch (err) {
+    console.error("Error in getNote: ", err);
+    throw err;
+  }
+}
+
+/**
+ * Removes a Thing Pico by it's name.
+ * @async
+ * @param {string} thingName - The name of the Thing Pico to remove.
+ * @returns {Promise<Object>} The engine's event response.
+ */
+async function deleteThing(thingName) {
+  const picoID = await getPicoIDByName(thingName);
+
+  const eci = await traverseHierarchy();
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/event/manifold/remove_thing`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `HTTP Error (${response.status}): ${await response.text()}`,
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Updates the display name of an existing Thing Pico (by thing name).
+ * @async
+ * @param {string} thingName - The current name of the Thing.
+ * @param {string} changedName - The new name for the Thing.
+ * @returns {Promise<Object>} The engine's event response.
+ */
+async function manifold_change_thing_name(thingName, changedName) {
+  const picoID = await getPicoIDByName(thingName);
+  const eci = await traverseHierarchy();
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/event/manifold/change_thing_name`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID, changedName }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `HTTP Error (${response.status}): ${await response.text()}`,
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Registers a SquareTag for a specific Thing.
+ * Automatically ensures the 'safeandmine' ruleset is installed on the Thing before registration.
+ * @async
+ * @function setSquareTag
+ * @param {string} thingName - The name of the Thing Pico.
+ * @param {string} tagId - The unique identifier for the physical tag.
+ * @param {string} [domain="sqtg"] - The namespace for the tag (default: "sqtg").
+ * @returns {Promise<Object>} The engine's event response containing the event ID.
+ * @throws {Error} If ruleset installation or tag registration fails.
+ */
+async function setSquareTag(thingName, tagId, domain = "sqtg") {
+  try {
+    // Get eci of Thing pico
+    const manifoldEci = await traverseHierarchy();
+    const thingEci = await getChildEciByName(manifoldEci, thingName);
+
     const rid = "io.picolabs.safeandmine";
-    const isInstalled = await picoHasRuleset(eci, rid);
+    const isInstalled = await picoHasRuleset(thingEci, rid);
 
     if (!isInstalled) {
       console.log("Installing safeandmine...");
@@ -505,14 +288,14 @@ async function setSquareTag(eci, tagId, domain = "sqtg") {
         __dirname,
         `../../Manifold-api/${rid}.krl`,
       );
-      await installRuleset(eci, pathToFileURL(absolutePath).href);
+      await installRuleset(thingEci, pathToFileURL(absolutePath).href);
       await new Promise((r) => setTimeout(r, 1000)); // Give KRL time to init
     }
 
-    const manifoldECI = await getECIByTag(eci, "manifold");
+    const thingManifoldChannel = await getECIByTag(thingEci, "manifold");
 
     const response = await fetch(
-      `http://127.0.0.1:3000/c/${manifoldECI}/event/safeandmine/new_tag`,
+      `http://127.0.0.1:3000/c/${thingManifoldChannel}/event/safeandmine/new_tag`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -529,59 +312,174 @@ async function setSquareTag(eci, tagId, domain = "sqtg") {
     throw err;
   }
 }
+
 /**
- * picoHasRuleset(picoEci, rid)
- * Returns true if the given ruleset RID is installed on the pico identified by `picoEci`.
+ * Gets owner info from a given tag
+ *
+ * @param {string} tagId
+ * @param {string} [domain=sqtg]
+ *
+ * @returns {object} JSON with owner data:
+ * {
+ *  name: string,
+ *  email: string,
+ *  phone: string,
+ *  message: string,
+ *  shareName: bool,
+ *  sharePhone: bool,
+ *  shareEmail: bool
+ * }
  */
-async function picoHasRuleset(picoEci, rid) {
+async function scanTag(tagId, domain = "sqtg") {
   try {
-    const resp = await fetch(
-      `http://localhost:3000/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`,
+    const rootECI = await getRootECI();
+    console.log("Root ECI:", rootECI);
+    const tagRegistryECI = await getChildEciByName(rootECI, "Tag Registry");
+    console.log("Tag Registry ECI:", tagRegistryECI);
+    const registrationECI = await getECIByTag(tagRegistryECI, "registration");
+    console.log("Tag Registration Channel ECI:", registrationECI);
+
+    const scanTagResponse = await fetch(
+      `http://localhost:3000/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`,
       {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagID: tagId, domain: domain }),
       },
     );
 
-    if (!resp.ok) return false;
-
-    const data = await resp.json();
-
-    for (const ruleset of data.rulesets) {
-      if (ruleset.rid === rid) return true;
+    if (!scanTagResponse.ok) {
+      throw new Error(
+        `HTTP Error (${scanTagResponse.status}): ${await scanTagResponse.text()}`,
+      );
     }
 
-    return false;
+    const scanTagData = await scanTagResponse.json();
+    console.log("scanTagData:", scanTagData);
+    const tagECI = scanTagData.did;
+
+    const infoResponse = await fetch(
+      `http://localhost:3000/c/${tagECI}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+
+    if (!infoResponse.ok) {
+      throw new Error(
+        `HTTP Error (${infoResponse.status}): ${await infoResponse.text()}`,
+      );
+    }
+
+    const infoData = await infoResponse.json();
+
+    return infoData;
   } catch (err) {
-    console.error("picoHasRuleset error:", err);
-    return false;
+    console.error("scanTag error: ", err);
   }
+}
+
+/**
+ * Updates a thing's owner info from an object that defines which attributes should be updated
+ *
+ * @param {string} thingName
+ * @param {object} ownerInfo
+ * {
+ *  name?: string,
+ *  email?: string,
+ *  phone?: string,
+ *  message?: string,
+ *  shareName?: bool,
+ *  sharePhone?: bool,
+ *  shareEmail?: bool
+ * }
+ *
+ * @returns {Promise<Object>} The engine's event response containing the event ID.
+ * @throws {Error} If info query or update fails.
+ */
+async function updateOwnerInfo(thingName, ownerInfo) {
+  try {
+    const manifoldEci = await traverseHierarchy();
+    const thingEci = await getChildEciByName(manifoldEci, thingName);
+    const validChannel = await getECIByTag(thingEci, "manifold");
+
+    const infoResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+    let currentOwnerInfo = await infoResponse.json();
+
+    // Accounts for case of object not having any owner info yet
+    if (Object.keys(currentOwnerInfo) == 0) {
+      currentOwnerInfo = {
+        name: "",
+        email: "",
+        phone: "",
+        message: "",
+        shareName: false,
+        sharePhone: false,
+        shareEmail: false,
+      };
+    }
+
+    // Loop through info attributes. Anything that is not defined by ownerInfo is not being updated and should retain its current value.
+    let newOwnerInfo = {};
+    for (const [key] of Object.entries(currentOwnerInfo)) {
+      if (ownerInfo[key] === undefined) {
+        newOwnerInfo[key] = currentOwnerInfo[key];
+      } else {
+        newOwnerInfo[key] = ownerInfo[key];
+      }
+    }
+
+    const updateResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/event-wait/safeandmine/update`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newOwnerInfo),
+      },
+    );
+
+    const updateData = await updateResponse.json();
+    return updateData;
+  } catch (err) {
+    console.error("updateOwnerInfo error: ", err);
+  }
+}
+
+/**
+ * Resolves a thing name to its picoID using the list of things from the manifold.
+ * @async
+ * @param {string} thingName - The name of the Thing Pico.
+ * @returns {Promise<string>} The picoID (ECI) of the thing.
+ */
+async function getPicoIDByName(thingName) {
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      return picoID;
+    }
+  }
+  throw new Error(`Thing "${thingName}" not found`);
 }
 
 module.exports = {
   main,
-  getRootECI,
-  getInitializationECI,
-  getManifoldECI,
   listThings,
   createThing,
   addNote,
-  addTag,
+  getNote,
   setSquareTag,
-  listThingsByTag,
-  picoHasRuleset,
-  installOwner,
-  setupRegistry,
-  getECIByTag,
-  getChildEciByName,
-  // Uniform MCP-friendly ops
-  manifold_getThings,
-  manifold_isAChild,
-  manifold_create_thing,
-  manifold_remove_thing,
+  scanTag,
+  updateOwnerInfo,
+  deleteThing,
   manifold_change_thing_name,
-  safeandmine_getInformation,
-  safeandmine_getTags,
-  safeandmine_update,
-  safeandmine_delete,
-  safeandmine_newtag,
+  getPicoIDByName,
 };

@@ -1,16 +1,11 @@
 const {
-  getRootECI,
-  getInitializationECI,
-  getManifoldECI,
-  picoHasRuleset,
-  addTag,
   setSquareTag,
-  listThings,
-  setupRegistry,
-  getECIByTag,
-  getChildEciByName,
   createThing,
+  updateOwnerInfo,
+  deleteThing,
+  scanTag,
 } = require("../../src/backend/api-wrapper");
+const { getECIByTag } = require("../../src/backend/utility");
 
 // test("get initial ECI", async () => {
 //   try {
@@ -78,37 +73,50 @@ const {
 //   }
 // });
 
-test("add tags", async () => {
-  try {
-    const eci = await getRootECI();
-    expect(eci).toBeDefined();
-    console.log("Root eci is", eci);
-    const ownerEci = await getChildEciByName(eci, "Owner");
-    console.log("Owner eci is", ownerEci);
-    expect(ownerEci).toBeDefined();
-    const initializedEci = await getInitializationECI(ownerEci);
-    console.log("Initialized eci is", initializedEci);
-    expect(initializedEci).toBeDefined();
-    const manifoldEci = await getManifoldECI(initializedEci);
-    expect(manifoldEci).toBeDefined();
-    console.log("Manifold eci is", manifoldEci);
+/**
+ * Helper to generate a short random string for unique tags
+ */
+const generateRandomString = (length = 6) =>
+  Math.random()
+    .toString(36)
+    .substring(2, 2 + length)
+    .toUpperCase();
 
-    // Create things to add tags to
-    const thingEci = await createThing(manifoldEci, "Test Thing");
-    console.log("Thing eci is", thingEci);
+test("create thing and add tags with unique identifiers", async () => {
+  const randomName = `Backpack-${Date.now()}`;
+  const randomTag = generateRandomString(6);
+
+  console.log(`Running test with Name: ${randomName} and Tag: ${randomTag}`);
+
+  try {
+    const thingEci = await createThing(randomName);
     expect(thingEci).toBeDefined();
-    isInstalled = await picoHasRuleset(thingEci, "io.picolabs.safeandmine");
-    expect(isInstalled).toBe(true);
-    // Need to find the things manifold ECI to add tags
-    const thingManifoldEci = await getECIByTag(thingEci, "manifold");
-    console.log("Thing manifold eci is", thingManifoldEci);
-    expect(thingManifoldEci).toBeDefined();
-    const addedTag = await setSquareTag(thingManifoldEci, "fake tag");
+    console.log(`${randomName} ECI is:`, thingEci);
+
+    const addedTag = await setSquareTag(randomName, randomTag);
+
     expect(addedTag).toBeDefined();
+    console.log("Added tag result:", addedTag);
+
+    // Optional: Verify the tag was actually registered
+    // const tags = await safeandmine_getTags(thingEci);
+    // expect(JSON.stringify(tags)).toContain(randomTag);
   } catch (error) {
+    console.error("Test failed during random generation flow:", error);
     throw error;
+  } finally {
+    // Cleanup: remove the created thing
+    try {
+      await deleteThing(randomName);
+      console.log(`✓ Cleaned up ${randomName}`);
+    } catch (cleanupError) {
+      console.warn(
+        `Warning: Failed to cleanup ${randomName}:`,
+        cleanupError.message,
+      );
+    }
   }
-});
+}, 60000); // 60 second timeout - createThing can take up to 10s, setSquareTag adds delays, plus network overhead
 
 // test("list things", async () => {
 //   try {
@@ -127,3 +135,74 @@ test("add tags", async () => {
 //     throw error;
 //   }
 // });
+test("Scan tag", async () => {
+  const response = await scanTag("URMOM", "sqtg");
+  console.log("scanTag response:", response);
+  expect(response).toBeDefined();
+});
+
+test("create thing, add owner info, update it, and view it", async () => {
+  const randomName = `Suitcase-${Date.now()}`;
+  try {
+    const thingEci = await createThing(randomName);
+    expect(thingEci).toBeDefined();
+    const validChannel = await getECIByTag(thingEci, "manifold");
+
+    const initialOwnerInfo = {
+      name: "test",
+      email: "test",
+      phone: "test",
+      message: "test",
+      shareName: true,
+      shareEmail: true,
+      sharePhone: true,
+    };
+    const firstUpdateResponse = await updateOwnerInfo(
+      randomName,
+      initialOwnerInfo,
+    );
+    expect(firstUpdateResponse.eid).toBeDefined();
+
+    const secondUpdateResponse = await updateOwnerInfo(randomName, {
+      name: "UPDATED",
+      sharePhone: false,
+    });
+    expect(secondUpdateResponse.eid).toBeDefined();
+
+    const getInfoResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+
+    const returnedOwnerInfo = await getInfoResponse.json();
+    const expectedOwnerInfo = {
+      name: "UPDATED",
+      email: "test",
+      phone: "test",
+      message: "test",
+      shareName: true,
+      shareEmail: true,
+      sharePhone: false,
+    };
+
+    expect(returnedOwnerInfo).toEqual(expectedOwnerInfo);
+  } catch (error) {
+    console.error("Test failed during random generation flow:", error);
+    throw error;
+  } finally {
+    // Cleanup: remove the created thing
+    try {
+      await deleteThing(randomName);
+      console.log(`✓ Cleaned up ${randomName}`);
+    } catch (cleanupError) {
+      console.warn(
+        `Warning: Failed to cleanup ${randomName}:`,
+        cleanupError.message,
+      );
+    }
+  }
+}, 60000); // 60 second timeout - createThing can take up to 10s, plus multiple update operations

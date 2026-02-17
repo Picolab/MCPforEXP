@@ -13,20 +13,20 @@ MANIFOLD_ECI=$(node -e "require('../src/backend/api-wrapper.js').main()")
 echo "Manifold ECI: $MANIFOLD_ECI"
 
 echo "Creating 'Blue Travel Case'"
-THING_ENGINE_ECI=$(node -e "require('../src/backend/api-wrapper.js').createThing('$MANIFOLD_ECI', 'Blue Travel Case')")
+THING_ENGINE_ECI=$(node -e "require('../src/backend/api-wrapper.js').createThing('Blue Travel Case')")
 echo Blue Travel Case ECI: $THING_ENGINE_ECI
 
 echo "Attaching a note"
 echo "NOT IMPLEMENTED"
 
 echo "Setting SquareTag 'AAABBB'"
-node -e "require('../src/backend/api-wrapper.js').addTags('$THING_ENGINE_ECI', 'AAABBB')"
+node -e "require('../src/backend/api-wrapper.js').setSquareTag('Blue Travel Case', 'AAABBB')"
 
 echo "Updating owner information"
 echo "NOT IMPLEMENTED"
 
 echo "calling listThings()"
-node -e "require('../src/backend/api-wrapper.js').listThings('$MANIFOLD_ECI')"
+node -e "require('../src/backend/api-wrapper.js').listThings()"
 
 kill $PICO_PID
 echo "Pico server shut down"

@@ -14,10 +14,23 @@ const { tools } = require("./tools");
 
 // MCP SDK (installed via npm): @modelcontextprotocol/sdk
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
+const {
+  StdioServerTransport,
+} = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { z } = require("zod");
 
-const api = require("../backend/api-wrapper");
+// Utility functions are no longer exposed to MCP users
+const {
+  manifold_getThings,
+  manifold_create_thing,
+  manifold_remove_thing,
+  manifold_change_thing_name,
+  safeandmine_newtag,
+  scanTag,
+  updateOwnerInfo,
+  addNote,
+  getNote,
+} = require("../backend/krl-operation.js");
 
 function asJsonContent(obj) {
   return [{ type: "text", text: JSON.stringify(obj, null, 2) }];
@@ -39,133 +52,116 @@ async function main() {
   // NOTE: The Node MCP SDK expects argument schemas as Zod, which Inspector can render.
   // We still keep `src/mcp/tools.js` for human-readable JSON schema + docs, but register Zod here.
 
-  const base = { eci: z.string(), id: z.string().optional() };
-
   server.tool(
     "manifold_getThings",
-    "KRL query: io.picolabs.manifold_pico/getThings",
-    z.object(base),
-    toolHandler(({ eci, id }) => api.manifold_getThings(eci, id)),
-  );
-
-  server.tool(
-    "manifold_isAChild",
-    "KRL query: io.picolabs.manifold_pico/isAChild",
-    z.object({ ...base, picoID: z.string() }),
-    toolHandler(({ eci, picoID, id }) => api.manifold_isAChild(eci, picoID, id)),
+    "List all digital things managed by Manifold. No arguments required.",
+    { id: z.string().optional() },
+    toolHandler(({ id }) => manifold_getThings(id)),
   );
 
   server.tool(
     "manifold_create_thing",
-    "KRL event: manifold/create_thing (attrs: name)",
-    z.object({ ...base, name: z.string() }),
-    toolHandler(({ eci, name, id }) => api.manifold_create_thing(eci, name, id)),
+    "Create a new digital thing Pico. Provide a descriptive name.",
+    {
+      name: z.string().describe("Descriptive name (e.g. 'Backpack')"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ name, id }) => manifold_create_thing(name, id)),
   );
 
   server.tool(
     "manifold_remove_thing",
-    "KRL event: manifold/remove_thing (attrs: picoID)",
-    z.object({ ...base, picoID: z.string() }),
-    toolHandler(({ eci, picoID, id }) => api.manifold_remove_thing(eci, picoID, id)),
+    "Remove a thing pico from Manifold by its name.",
+    {
+      thingName: z.string().describe("The name of the thing to remove"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, id }) => manifold_remove_thing(thingName, id)),
   );
 
   server.tool(
     "manifold_change_thing_name",
-    "KRL event: manifold/change_thing_name (attrs: picoID, changedName)",
-    z.object({ ...base, picoID: z.string(), changedName: z.string() }),
-    toolHandler(({ eci, picoID, changedName, id }) => api.manifold_change_thing_name(eci, picoID, changedName, id)),
-  );
-
-  server.tool(
-    "safeandmine_getInformation",
-    "KRL query: io.picolabs.safeandmine/getInformation (optional arg: info)",
-    z.object({ ...base, info: z.string().optional() }),
-    toolHandler(({ eci, info, id }) => api.safeandmine_getInformation(eci, info, id)),
-  );
-
-  server.tool(
-    "safeandmine_getTags",
-    "KRL query: io.picolabs.safeandmine/getTags",
-    z.object(base),
-    toolHandler(({ eci, id }) => api.safeandmine_getTags(eci, id)),
-  );
-
-  server.tool(
-    "safeandmine_update",
-    "KRL event: safeandmine/update (attrs: name,email,phone,message,shareName,shareEmail,sharePhone)",
-    z.object({
-      ...base,
-      name: z.string().optional(),
-      email: z.string().optional(),
-      phone: z.string().optional(),
-      message: z.string().optional(),
-      shareName: z.boolean().optional(),
-      shareEmail: z.boolean().optional(),
-      sharePhone: z.boolean().optional(),
-    }),
-    toolHandler(({ eci, id, name, email, phone, message, shareName, shareEmail, sharePhone }) =>
-      api.safeandmine_update(eci, { name, email, phone, message, shareName, shareEmail, sharePhone }, id),
+    "Rename a thing pico. Use the thing's current name and the new name.",
+    {
+      thingName: z.string().describe("The current name of the thing to rename"),
+      changedName: z.string().describe("The new name for the thing"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, changedName, id }) =>
+      manifold_change_thing_name(thingName, changedName, id),
     ),
   );
 
   server.tool(
-    "safeandmine_delete",
-    "KRL event: safeandmine/delete (optional attr: toDelete). If omitted clears all stored info.",
-    z.object({ ...base, toDelete: z.string().optional() }),
-    toolHandler(({ eci, toDelete, id }) => api.safeandmine_delete(eci, toDelete, id)),
-  );
-
-  server.tool(
     "safeandmine_newtag",
-    "KRL event: safeandmine/new_tag (attrs: tagID, domain)",
-    z.object({ ...base, tagID: z.string(), domain: z.string() }),
-    toolHandler(({ eci, tagID, domain, id }) => api.safeandmine_newtag(eci, tagID, domain, id)),
-  );
-
-  // Additional utility tools from api-wrapper
-  server.tool(
-    "getRootECI",
-    "Get the root pico ECI (UI pico). Hierarchy: Root Pico → Tag Registry & Owner Picos → Owner → Manifold Pico → Thing Picos.",
-    z.object({}),
-    toolHandler(async () => {
-      const eci = await api.getRootECI();
-      return { rootEci: eci };
-    }),
+    "Assign a physical SquareTag to a named Pico.",
+    {
+      thingName: z.string().describe("The name of the Pico to tag"),
+      tagID: z.string().describe("The alphanumeric tag ID"),
+      domain: z.string().default("sqtg"),
+    },
+    toolHandler(({ thingName, tagID, domain, id }) =>
+      safeandmine_newtag(thingName, tagID, domain, id),
+    ),
   );
 
   server.tool(
-    "addTags",
-    "Installs safeandmine ruleset on a thing pico if not already installed",
-    z.object(base),
-    toolHandler(({ eci }) => api.addTags(eci, null)),
+    "scanTag",
+    "Scan a SquareTag by its ID and domain to see if it's registered to any Pico.",
+    {
+      tagID: z.string().describe("The alphanumeric tag ID"),
+      domain: z.string().default("sqtg"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ tagID, domain, id }) => scanTag(tagID, domain, id)),
   );
 
   server.tool(
-    "childHasRuleset",
-    "Check if a ruleset (RID) is installed on a child pico",
-    z.object({ ...base, rid: z.string().describe("Ruleset ID to check (e.g., io.picolabs.safeandmine)") }),
-    toolHandler(({ eci, rid }) => api.childHasRuleset(eci, rid)),
+    "updateOwnerInfo",
+    "Update the owner information for a thing pico.",
+    {
+      thingName: z.string().describe("The name of the thing to update"),
+      ownerInfo: z.object({
+        name: z.string().describe("Owner's name"),
+        email: z.string().describe("Owner's email"),
+        phone: z.string().describe("Owner's phone number"),
+        message: z.string().describe("A message from the owner"),
+        shareName: z.boolean().describe("Whether to share the owner's name"),
+        shareEmail: z.boolean().describe("Whether to share the owner's email"),
+        sharePhone: z.boolean().describe("Whether to share the owner's phone"),
+      }),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, ownerInfo, id }) =>
+      updateOwnerInfo(thingName, ownerInfo, id),
+    ),
   );
 
   server.tool(
-    "installOwner",
-    "Install the manifold_owner ruleset on the root pico (requires root ECI)",
-    z.object(base),
-    toolHandler(({ eci }) => api.installOwner(eci)),
+    "addNote",
+    "Add a note to a thing pico's journal.",
+    {
+      thingName: z.string().describe("The name of the thing to add a note to"),
+      title: z.string().describe("The title of the note"),
+      content: z.string().describe("The content of the note"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, title, content, id }) =>
+      addNote(thingName, title, content, id),
+    ),
   );
 
   server.tool(
-    "initializeManifold",
-    "Full bootstrap: install owner ruleset, create manifold pico, return manifold ECI (no args needed, uses root ECI)",
-    z.object({}),
-    toolHandler(() => api.initializeManifold()),
-  );
-
-  server.tool(
-    "installRuleset",
-    "Install a KRL ruleset on a pico via file:// URL",
-    z.object({ ...base, filePath: z.string().describe("File URL (e.g., file:///path/to/ruleset.krl)") }),
-    toolHandler(({ eci, filePath }) => api.installRuleset(eci, filePath)),
+    "getNote",
+    "Get a note from a thing pico's journal.",
+    {
+      thingName: z
+        .string()
+        .describe("The name of the thing to get a note from"),
+      title: z.string().describe("The title of the note to retrieve"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, title, id }) => getNote(thingName, title, id)),
   );
 
   const transport = new StdioServerTransport();
@@ -177,4 +173,3 @@ main().catch((e) => {
   console.error("MCP server failed:", e);
   process.exit(1);
 });
-
