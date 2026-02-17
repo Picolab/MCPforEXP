@@ -22,15 +22,12 @@ const { z } = require("zod");
 // Utility functions are no longer exposed to MCP users
 const {
   manifold_getThings,
-  manifold_isAChild,
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,
-  safeandmine_getInformation,
-  safeandmine_getTags,
-  safeandmine_update,
-  safeandmine_delete,
   safeandmine_newtag,
+  scanTag,
+  updateOwnerInfo,
 } = require("../backend/krl-operation.js");
 
 function asJsonContent(obj) {
@@ -61,13 +58,6 @@ async function main() {
   );
 
   server.tool(
-    "manifold_isAChild",
-    "Check if a thing with the given name is a registered child of the Manifold.",
-    { thingName: z.string().describe("The name of the thing to check"), id: z.string().optional() },
-    toolHandler(({ thingName, id }) => manifold_isAChild(thingName, id)),
-  );
-
-  server.tool(
     "manifold_create_thing",
     "Create a new digital thing Pico. Provide a descriptive name.",
     {
@@ -80,7 +70,10 @@ async function main() {
   server.tool(
     "manifold_remove_thing",
     "Remove a thing pico from Manifold by its name.",
-    { thingName: z.string().describe("The name of the thing to remove"), id: z.string().optional() },
+    {
+      thingName: z.string().describe("The name of the thing to remove"),
+      id: z.string().optional(),
+    },
     toolHandler(({ thingName, id }) => manifold_remove_thing(thingName, id)),
   );
 
@@ -107,6 +100,38 @@ async function main() {
     },
     toolHandler(({ thingName, tagID, domain, id }) =>
       safeandmine_newtag(thingName, tagID, domain, id),
+    ),
+  );
+
+  server.tool(
+    "scanTag",
+    "Scan a SquareTag by its ID and domain to see if it's registered to any Pico.",
+    {
+      tagID: z.string().describe("The alphanumeric tag ID"),
+      domain: z.string().default("sqtg"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ tagID, domain, id }) => scanTag(tagID, domain, id)),
+  );
+
+  server.tool(
+    "updateOwnerInfo",
+    "Update the owner information for a thing pico.",
+    {
+      thingName: z.string().describe("The name of the thing to update"),
+      ownerInfo: z.object({
+        name: z.string().describe("Owner's name"),
+        email: z.string().describe("Owner's email"),
+        phone: z.string().describe("Owner's phone number"),
+        message: z.string().describe("A message from the owner"),
+        shareName: z.boolean().describe("Whether to share the owner's name"),
+        shareEmail: z.boolean().describe("Whether to share the owner's email"),
+        sharePhone: z.boolean().describe("Whether to share the owner's phone"),
+      }),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, ownerInfo, id }) =>
+      updateOwnerInfo(thingName, ownerInfo, id),
     ),
   );
 

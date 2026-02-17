@@ -2,11 +2,10 @@ const {
   setSquareTag,
   createThing,
   updateOwnerInfo,
-  removeThingByName,
+  deleteThing,
+  scanTag,
 } = require("../../src/backend/api-wrapper");
-const {
-  getECIByTag,
-} = require("../../src/backend/utility");
+const { getECIByTag } = require("../../src/backend/utility");
 
 // test("get initial ECI", async () => {
 //   try {
@@ -83,42 +82,41 @@ const generateRandomString = (length = 6) =>
     .substring(2, 2 + length)
     .toUpperCase();
 
-test(
-  "create thing and add tags with unique identifiers",
-  async () => {
-    const randomName = `Backpack-${Date.now()}`;
-    const randomTag = generateRandomString(6);
+test("create thing and add tags with unique identifiers", async () => {
+  const randomName = `Backpack-${Date.now()}`;
+  const randomTag = generateRandomString(6);
 
-    console.log(`Running test with Name: ${randomName} and Tag: ${randomTag}`);
+  console.log(`Running test with Name: ${randomName} and Tag: ${randomTag}`);
 
+  try {
+    const thingEci = await createThing(randomName);
+    expect(thingEci).toBeDefined();
+    console.log(`${randomName} ECI is:`, thingEci);
+
+    const addedTag = await setSquareTag(randomName, randomTag);
+
+    expect(addedTag).toBeDefined();
+    console.log("Added tag result:", addedTag);
+
+    // Optional: Verify the tag was actually registered
+    // const tags = await safeandmine_getTags(thingEci);
+    // expect(JSON.stringify(tags)).toContain(randomTag);
+  } catch (error) {
+    console.error("Test failed during random generation flow:", error);
+    throw error;
+  } finally {
+    // Cleanup: remove the created thing
     try {
-      const thingEci = await createThing(randomName);
-      expect(thingEci).toBeDefined();
-      console.log(`${randomName} ECI is:`, thingEci);
-
-      const addedTag = await setSquareTag(randomName, randomTag);
-
-      expect(addedTag).toBeDefined();
-      console.log("Added tag result:", addedTag);
-
-      // Optional: Verify the tag was actually registered
-      // const tags = await safeandmine_getTags(thingEci);
-      // expect(JSON.stringify(tags)).toContain(randomTag);
-    } catch (error) {
-      console.error("Test failed during random generation flow:", error);
-      throw error;
-    } finally {
-      // Cleanup: remove the created thing
-      try {
-        await removeThingByName(randomName);
-        console.log(`✓ Cleaned up ${randomName}`);
-      } catch (cleanupError) {
-        console.warn(`Warning: Failed to cleanup ${randomName}:`, cleanupError.message);
-      }
+      await deleteThing(randomName);
+      console.log(`✓ Cleaned up ${randomName}`);
+    } catch (cleanupError) {
+      console.warn(
+        `Warning: Failed to cleanup ${randomName}:`,
+        cleanupError.message,
+      );
     }
-  },
-  60000, // 60 second timeout - createThing can take up to 10s, setSquareTag adds delays, plus network overhead
-);
+  }
+}, 60000); // 60 second timeout - createThing can take up to 10s, setSquareTag adds delays, plus network overhead
 
 // test("list things", async () => {
 //   try {
@@ -137,70 +135,74 @@ test(
 //     throw error;
 //   }
 // });
+test(scanTag, async () => {
+  const response = await scanTag("URMOM", "sqtg");
+  console.log("scanTag response:", response);
+  expect(response).toBeDefined();
+});
 
-test(
-  "create thing, add owner info, update it, and view it",
-  async () => {
-    const randomName = `Suitcase-${Date.now()}`;
+test("create thing, add owner info, update it, and view it", async () => {
+  const randomName = `Suitcase-${Date.now()}`;
+  try {
+    const thingEci = await createThing(randomName);
+    expect(thingEci).toBeDefined();
+    const validChannel = await getECIByTag(thingEci, "manifold");
+
+    const initialOwnerInfo = {
+      name: "test",
+      email: "test",
+      phone: "test",
+      message: "test",
+      shareName: true,
+      shareEmail: true,
+      sharePhone: true,
+    };
+    const firstUpdateResponse = await updateOwnerInfo(
+      randomName,
+      initialOwnerInfo,
+    );
+    expect(firstUpdateResponse.eid).toBeDefined();
+
+    const secondUpdateResponse = await updateOwnerInfo(randomName, {
+      name: "UPDATED",
+      sharePhone: false,
+    });
+    expect(secondUpdateResponse.eid).toBeDefined();
+
+    const getInfoResponse = await fetch(
+      `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ info: "" }),
+      },
+    );
+
+    const returnedOwnerInfo = await getInfoResponse.json();
+    const expectedOwnerInfo = {
+      name: "UPDATED",
+      email: "test",
+      phone: "test",
+      message: "test",
+      shareName: true,
+      shareEmail: true,
+      sharePhone: false,
+    };
+
+    expect(returnedOwnerInfo).toEqual(expectedOwnerInfo);
+  } catch (error) {
+    console.error("Test failed during random generation flow:", error);
+    throw error;
+  } finally {
+    // Cleanup: remove the created thing
     try {
-      const thingEci = await createThing(randomName);
-      expect(thingEci).toBeDefined();
-      const validChannel = await getECIByTag(thingEci, "manifold");
-
-      const initialOwnerInfo = {
-        name: "test",
-        email: "test",
-        phone: "test",
-        message: "test",
-        shareName: true,
-        shareEmail: true,
-        sharePhone: true,
-      };
-      const firstUpdateResponse = await updateOwnerInfo(
-        randomName,
-        initialOwnerInfo,
+      await deleteThing(randomName);
+      console.log(`✓ Cleaned up ${randomName}`);
+    } catch (cleanupError) {
+      console.warn(
+        `Warning: Failed to cleanup ${randomName}:`,
+        cleanupError.message,
       );
-      expect(firstUpdateResponse.eid).toBeDefined();
-
-      const secondUpdateResponse = await updateOwnerInfo(randomName, {
-        name: "UPDATED",
-        sharePhone: false,
-      });
-      expect(secondUpdateResponse.eid).toBeDefined();
-
-      const getInfoResponse = await fetch(
-        `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ info: "" }),
-        },
-      );
-
-      const returnedOwnerInfo = await getInfoResponse.json();
-      const expectedOwnerInfo = {
-        name: "UPDATED",
-        email: "test",
-        phone: "test",
-        message: "test",
-        shareName: true,
-        shareEmail: true,
-        sharePhone: false,
-      };
-
-      expect(returnedOwnerInfo).toEqual(expectedOwnerInfo);
-    } catch (error) {
-      console.error("Test failed during random generation flow:", error);
-      throw error;
-    } finally {
-      // Cleanup: remove the created thing
-      try {
-        await removeThingByName(randomName);
-        console.log(`✓ Cleaned up ${randomName}`);
-      } catch (cleanupError) {
-        console.warn(`Warning: Failed to cleanup ${randomName}:`, cleanupError.message);
-      }
     }
-  },
-  60000, // 60 second timeout - createThing can take up to 10s, plus multiple update operations
-);
+  }
+}, 60000); // 60 second timeout - createThing can take up to 10s, plus multiple update operations

@@ -317,6 +317,48 @@ async function traverseHierarchy() {
   return manifoldChannel;
 }
 
+/**
+ * Helper function to get a thing's manifold channel ECI by thing name.
+ * @async
+ * @param {string} thingName - The name of the Thing Pico.
+ * @returns {Promise<string>} The manifold channel ECI for the thing.
+ */
+async function getThingManifoldChannel(thingName) {
+  const manifoldEci = await traverseHierarchy();
+  const thingEci = await getChildEciByName(manifoldEci, thingName);
+  if (!thingEci) {
+    throw new Error(`Thing "${thingName}" not found`);
+  }
+  return await getECIByTag(thingEci, "manifold");
+}
+
+/**
+ * Checks if a thing with the given name is a registered child of the Manifold.
+ * @async
+ * @param {string} thingName - The name of the thing to verify.
+ * @returns {Promise<boolean>} True if the thing is a child, false otherwise.
+ */
+async function manifold_isAChild(thingName) {
+  const picoID = await getPicoIDByName(thingName);
+  const eci = await traverseHierarchy();
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/query/io.picolabs.manifold_pico/isAChild`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ picoID }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `HTTP Error (${response.status}): ${await response.text()}`,
+    );
+  }
+
+  return await response.json();
+}
+
 module.exports = {
   getRootECI,
   getInitializationECI,
@@ -327,5 +369,7 @@ module.exports = {
   getECIByTag,
   getChildEciByName,
   traverseHierarchy,
+  getThingManifoldChannel,
+  manifold_isAChild,
   installRuleset,
 };

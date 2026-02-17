@@ -72,6 +72,14 @@ async function listThings() {
  * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
 async function createThing(thingName) {
+  //Check if thingName already exists in manifold. If so, throw error to avoid duplicates.
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      throw new Error(`Thing with name "${thingName}" already exists`);
+    }
+  }
+
   const manifoldEci = await traverseHierarchy();
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
@@ -183,70 +191,14 @@ async function getNote(eci, title) {
 }
 
 /**
- * Helper function to get a thing's manifold channel ECI by thing name.
+ * Removes a Thing Pico by it's name.
  * @async
- * @param {string} thingName - The name of the Thing Pico.
- * @returns {Promise<string>} The manifold channel ECI for the thing.
- */
-async function getThingManifoldChannel(thingName) {
-  const manifoldEci = await traverseHierarchy();
-  const thingEci = await getChildEciByName(manifoldEci, thingName);
-  if (!thingEci) {
-    throw new Error(`Thing "${thingName}" not found`);
-  }
-  return await getECIByTag(thingEci, "manifold");
-}
-
-/**
- * Resolves a thing name to its picoID using the list of things from the manifold.
- * @async
- * @param {string} thingName - The name of the Thing Pico.
- * @returns {Promise<string>} The picoID (ECI) of the thing.
- */
-async function getPicoIDByName(thingName) {
-  const things = await listThings();
-  for (const [picoID, thingData] of Object.entries(things)) {
-    if (thingData.name === thingName) {
-      return picoID;
-    }
-  }
-  throw new Error(`Thing "${thingName}" not found`);
-}
-
-/**
- * Checks if a thing with the given name is a registered child of the Manifold.
- * @async
- * @param {string} thingName - The name of the thing to verify.
- * @returns {Promise<boolean>} True if the thing is a child, false otherwise.
- */
-async function manifold_isAChild(thingName) {
-  const picoID = await getPicoIDByName(thingName);
-  const eci = await traverseHierarchy();
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/query/io.picolabs.manifold_pico/isAChild`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ picoID }),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `HTTP Error (${response.status}): ${await response.text()}`,
-    );
-  }
-
-  return await response.json();
-}
-
-/**
- * Removes a Thing Pico by picoID (internal use).
- * @async
- * @param {string} picoID - The ID of the Thing Pico to remove.
+ * @param {string} thingName - The name of the Thing Pico to remove.
  * @returns {Promise<Object>} The engine's event response.
  */
-async function manifold_remove_thing(picoID) {
+async function deleteThing(thingName) {
+  const picoID = await getPicoIDByName(thingName);
+
   const eci = await traverseHierarchy();
   const response = await fetch(
     `http://localhost:3000/c/${eci}/event/manifold/remove_thing`,
@@ -364,9 +316,12 @@ async function setSquareTag(thingName, tagId, domain = "sqtg") {
  */
 async function scanTag(tagId, domain = "sqtg") {
   try {
-    const rootECI = getRootECI();
-    const tagRegistryECI = getChildEciByName(rootECI, "Tag Registry");
-    const registrationECI = getECIByTag(tagRegistryECI, "registration");
+    const rootECI = await getRootECI();
+    console.log("Root ECI:", rootECI);
+    const tagRegistryECI = await getChildEciByName(rootECI, "Tag Registry");
+    console.log("Tag Registry ECI:", tagRegistryECI);
+    const registrationECI = await getECIByTag(tagRegistryECI, "registration");
+    console.log("Tag Registration Channel ECI:", registrationECI);
 
     const scanTagResponse = await fetch(
       `http://localhost:3000/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`,
@@ -377,7 +332,14 @@ async function scanTag(tagId, domain = "sqtg") {
       },
     );
 
+    if (!scanTagResponse.ok) {
+      throw new Error(
+        `HTTP Error (${scanTagResponse.status}): ${await scanTagResponse.text()}`,
+      );
+    }
+
     const scanTagData = await scanTagResponse.json();
+    console.log("scanTagData:", scanTagData);
     const tagECI = scanTagData.did;
 
     const infoResponse = await fetch(
@@ -388,6 +350,12 @@ async function scanTag(tagId, domain = "sqtg") {
         body: JSON.stringify({ info: "" }),
       },
     );
+
+    if (!infoResponse.ok) {
+      throw new Error(
+        `HTTP Error (${infoResponse.status}): ${await infoResponse.text()}`,
+      );
+    }
 
     const infoData = await infoResponse.json();
 
@@ -471,14 +439,19 @@ async function updateOwnerInfo(thingName, ownerInfo) {
 }
 
 /**
- * Removes a Thing Pico by its name (finds the picoID from the name).
+ * Resolves a thing name to its picoID using the list of things from the manifold.
  * @async
- * @param {string} thingName - The name of the Thing Pico to remove.
- * @returns {Promise<Object>} The engine's event response.
+ * @param {string} thingName - The name of the Thing Pico.
+ * @returns {Promise<string>} The picoID (ECI) of the thing.
  */
-async function removeThingByName(thingName) {
-  const picoID = await getPicoIDByName(thingName);
-  return await manifold_remove_thing(picoID);
+async function getPicoIDByName(thingName) {
+  const things = await listThings();
+  for (const [picoID, thingData] of Object.entries(things)) {
+    if (thingData.name === thingName) {
+      return picoID;
+    }
+  }
+  throw new Error(`Thing "${thingName}" not found`);
 }
 
 module.exports = {
@@ -490,9 +463,7 @@ module.exports = {
   setSquareTag,
   scanTag,
   updateOwnerInfo,
-  manifold_isAChild,
-  manifold_remove_thing,
+  deleteThing,
   manifold_change_thing_name,
-  removeThingByName,
   getPicoIDByName,
 };
