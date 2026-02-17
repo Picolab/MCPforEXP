@@ -1,0 +1,17 @@
+services:
+  pico:
+    build:
+      context: .
+      dockerfile: Dockerfile.pico
+    ports:
+      - "3000:3000"
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
+    depends_on:
+      - pico
+    environment:
+      PICO_ENGINE_BASE_URL: http://pico:3000
+    command: sh -c "sleep 5 && npm test && rm -r ~/.pico-engine 2>/dev/null"
