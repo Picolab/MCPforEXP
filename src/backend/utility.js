@@ -327,4 +327,5 @@ module.exports = {
   getECIByTag,
   getChildEciByName,
   traverseHierarchy,
+  installRuleset,
 };
