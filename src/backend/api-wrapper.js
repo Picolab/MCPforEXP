@@ -131,7 +131,7 @@ async function addNote(thingName, title, content) {
     const thingEci = await getECIByTag(engineEci, "manifold");
 
     const rid = "io.picolabs.journal";
-    const isInstalled = await picoHasRuleset(thingEci, rid);
+    const isInstalled = await picoHasRuleset(engineEci, rid);
 
     if (!isInstalled) {
       console.log("Installing journal...");
@@ -139,7 +139,7 @@ async function addNote(thingName, title, content) {
         __dirname,
         `../../Manifold-api/${rid}.krl`,
       );
-      await installRuleset(thingEci, pathToFileURL(absolutePath).href);
+      await installRuleset(engineEci, pathToFileURL(absolutePath).href);
       await new Promise((r) => setTimeout(r, 10000));
     }
 
@@ -175,7 +175,7 @@ async function getNote(thingName, title) {
     const thingEci = await getECIByTag(engineEci, "manifold");
 
     const rid = "io.picolabs.journal";
-    const isInstalled = await picoHasRuleset(thingEci, rid);
+    const isInstalled = await picoHasRuleset(engineEci, rid);
 
     if (!isInstalled) {
       // If trying to get note and this isn't installed then there's no point in installing it to get a note. It's impossible.
