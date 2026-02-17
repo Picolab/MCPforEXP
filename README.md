@@ -141,7 +141,6 @@ These helpers live in `src/backend/krl-operation.js` and all return the envelope
 
 - **Manifold pico**
   - Query: `manifold_getThings(eci)`
-  - Query: `manifold_isAChild(eci, picoID)`
   - Event: `manifold_create_thing(eci, name)`
   - Event: `manifold_remove_thing(eci, picoID)` (note: KRL expects `picoID`)
   - Event: `manifold_change_thing_name(eci, picoID, changedName)` (note: KRL expects `changedName`)

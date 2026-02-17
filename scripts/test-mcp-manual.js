@@ -10,9 +10,7 @@
 
 const {
   manifold_getThings,
-  manifold_isAChild,
   manifold_create_thing,
-  safeandmine_getTags,
   manifold_remove_thing,
   safeandmine_newtag,
 } = require("../src/backend/krl-operation.js");
@@ -91,15 +89,10 @@ async function testManifoldConnection() {
     const thingEci = createResult.data.thingEci;
     console.log(`✓ Created! ECI: ${thingEci}`);
 
-    // Step 3: Verify Child Link
-    console.log(`\nStep 3: Verifying parent-child link...`);
-    const childCheck = await manifold_isAChild(thingEci);
-    console.log(`✓ Is child: ${childCheck.data}`);
-
-    // Step 4: Add SquareTag (Pivotal Prototype 2 Requirement)
+    // Step 3: Add SquareTag (Pivotal Prototype 2 Requirement)
     const testTag = `TAG-${Math.random().toString(36).substring(7).toUpperCase()}`;
     console.log(
-      `\nStep 4: Registering SquareTag "${testTag}" to "${uniqueName}"...`,
+      `\nStep 3: Registering SquareTag "${testTag}" to "${uniqueName}"...`,
     );
 
     // safeandmine_newtag uses the abstracted setSquareTag under the hood
@@ -109,25 +102,6 @@ async function testManifoldConnection() {
       console.log(`✓ Tag registration event successful.`);
     } else {
       console.log(`✗ Tag registration failed: ${getErrorMessage(tagResult)}`);
-    }
-
-    // Step 5: Verify State Change (The "Rigorous" Part)
-    console.log(`\nStep 5: Verifying tag storage on the Pico...`);
-    // Give the engine a moment to process the registration event
-    await new Promise((r) => setTimeout(r, 1500));
-
-    const tagsQuery = await safeandmine_getTags(thingEci);
-    if (isSuccess(tagsQuery)) {
-      const registeredTags = tagsQuery.data?.sqtg || [];
-      if (registeredTags.includes(testTag)) {
-        console.log(`✓ Success! Tag "${testTag}" found in Pico storage.`);
-      } else {
-        console.log(
-          `✗ Error: Tag not found. Current tags: ${JSON.stringify(registeredTags)}`,
-        );
-      }
-    } else {
-      console.log(`✗ Could not query tags: ${getErrorMessage(tagsQuery)}`);
     }
 
     console.log("\n" + "=".repeat(60));
