@@ -1,4 +1,5 @@
-const { getRootECI, setupRegistry } = require("../src/backend/utility.js");
+const { getRootECI } = require("../src/backend/utility/eci-utility.js");
+const { setupRegistry } = require("../src/backend/utility/api-utility.js");
 
 /**
  *

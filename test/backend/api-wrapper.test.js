@@ -5,7 +5,7 @@ const {
   deleteThing,
   scanTag,
 } = require("../../src/backend/api-wrapper");
-const { getECIByTag } = require("../../src/backend/utility");
+const { getECIByTag } = require("../../src/backend/utility/eci-utility.js");
 
 // test("get initial ECI", async () => {
 //   try {
