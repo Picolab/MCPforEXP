@@ -100,6 +100,12 @@ async function picoHasRuleset(picoEci, rid) {
   }
 }
 
+/**
+ * Starts from the root pico and traverses down the hierarchy to find the ECI of the manifold channel on the manifold pico.
+ * * @async
+ * @function traverseHierarchy
+ * @returns The eci of the manifold channel on the manifold pico.
+ */
 async function traverseHierarchy() {
   const rootECI = await getRootECI();
   const ownerECI = await getChildEciByName(rootECI, "Owner");
