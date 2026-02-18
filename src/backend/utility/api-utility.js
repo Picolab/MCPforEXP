@@ -1,12 +1,6 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
-const {
-  getRootECI,
-  getInitializationECI,
-  getManifoldECI,
-  getECIByTag,
-  getChildEciByName,
-} = require("./eci-utility");
+const { getRootECI, getECIByTag } = require("./eci-utility");
 
 /**
  * Installs a KRL ruleset on a pico using its file URL.
@@ -98,21 +92,6 @@ async function picoHasRuleset(picoEci, rid) {
     console.error("picoHasRuleset error:", err);
     return false;
   }
-}
-
-/**
- * Starts from the root pico and traverses down the hierarchy to find the ECI of the manifold channel on the manifold pico.
- * * @async
- * @function traverseHierarchy
- * @returns The eci of the manifold channel on the manifold pico.
- */
-async function traverseHierarchy() {
-  const rootECI = await getRootECI();
-  const ownerECI = await getChildEciByName(rootECI, "Owner");
-  const ownerInitializationECI = await getInitializationECI(ownerECI);
-  const manifoldECI = await getManifoldECI(ownerInitializationECI);
-  const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
-  return manifoldChannel;
 }
 
 /**
@@ -210,7 +189,6 @@ module.exports = {
   picoHasRuleset,
   installOwner,
   setupRegistry,
-  traverseHierarchy,
   manifold_isAChild,
   installRuleset,
 };

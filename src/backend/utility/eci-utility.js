@@ -1,4 +1,5 @@
-const { traverseHierarchy } = require("./api-utility");
+const { tr } = require("zod/v4/locales");
+
 /**
  * Fetches the root ECI of the UI pico from the engine's local context.
  * * @async
@@ -165,6 +166,21 @@ async function getThingManifoldChannel(thingName) {
   return await getECIByTag(thingEci, "manifold");
 }
 
+/**
+ * Starts from the root pico and traverses down the hierarchy to find the ECI of the manifold channel on the manifold pico.
+ * * @async
+ * @function traverseHierarchy
+ * @returns The eci of the manifold channel on the manifold pico.
+ */
+async function traverseHierarchy() {
+  const rootECI = await getRootECI();
+  const ownerECI = await getChildEciByName(rootECI, "Owner");
+  const ownerInitializationECI = await getInitializationECI(ownerECI);
+  const manifoldECI = await getManifoldECI(ownerInitializationECI);
+  const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
+  return manifoldChannel;
+}
+
 module.exports = {
   getRootECI,
   getInitializationECI,
@@ -172,4 +188,5 @@ module.exports = {
   getECIByTag,
   getChildEciByName,
   getThingManifoldChannel,
+  traverseHierarchy,
 };

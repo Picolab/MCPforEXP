@@ -4,12 +4,9 @@ const {
   getRootECI,
   getECIByTag,
   getChildEciByName,
-} = require("./utility/eci-utility.js");
-const {
-  picoHasRuleset,
   traverseHierarchy,
-  installRuleset,
-} = require("./utility/api-utility.js");
+} = require("./utility/eci-utility.js");
+const { picoHasRuleset, installRuleset } = require("./utility/api-utility.js");
 
 async function main() {
   console.log(await traverseHierarchy());
@@ -83,6 +80,7 @@ async function createThing(thingName) {
   }
 
   const manifoldEci = await traverseHierarchy();
+  console.log("traverseHierarchy result in createThing:", manifoldEci);
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
