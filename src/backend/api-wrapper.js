@@ -2,12 +2,14 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const {
   getRootECI,
-  picoHasRuleset,
   getECIByTag,
   getChildEciByName,
+} = require("./utility/eci-utility.js");
+const {
+  picoHasRuleset,
   traverseHierarchy,
   installRuleset,
-} = require("./utility.js");
+} = require("./utility/api-utility.js");
 
 async function main() {
   console.log(await traverseHierarchy());
