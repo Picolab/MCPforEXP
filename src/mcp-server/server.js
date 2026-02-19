@@ -10,7 +10,7 @@
  * which already returns a uniform envelope: { id, ok, data, error?, meta }.
  */
 
-const { tools } = require("./tools");
+const { tools } = require("./tools.js");
 
 // MCP SDK (installed via npm): @modelcontextprotocol/sdk
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
