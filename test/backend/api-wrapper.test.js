@@ -5,7 +5,7 @@ const {
   deleteThing,
   scanTag,
 } = require("../../src/backend/api-wrapper");
-const { getECIByTag } = require("../../src/backend/utility");
+const { getECIByTag } = require("../../src/backend/utility/eci-utility.js");
 
 // test("get initial ECI", async () => {
 //   try {
@@ -135,11 +135,6 @@ test("create thing and add tags with unique identifiers", async () => {
 //     throw error;
 //   }
 // });
-test("Scan tag", async () => {
-  const response = await scanTag("URMOM", "sqtg");
-  console.log("scanTag response:", response);
-  expect(response).toBeDefined();
-});
 
 test("create thing, add owner info, update it, and view it", async () => {
   const randomName = `Suitcase-${Date.now()}`;

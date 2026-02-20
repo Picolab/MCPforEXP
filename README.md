@@ -10,9 +10,9 @@ The project is structured to clearly separate concerns and support scalability a
 ├── scripts/
 ├── src/
 │   ├── backend/
-│   │   ├── server/
-│   │   ├── llm/
-│   │   └── mcp/
+│   │   ├── mcp/
+│   │   ├── utility/
+│   │   └── llm/
 │   └── ui/
 ├── test/
 │   ├── backend/
@@ -140,16 +140,16 @@ Error:
 These helpers live in `src/backend/krl-operation.js` and all return the envelope above:
 
 - **Manifold pico**
-  - Query: `manifold_getThings(eci)`
-  - Event: `manifold_create_thing(eci, name)`
-  - Event: `manifold_remove_thing(eci, picoID)` (note: KRL expects `picoID`)
-  - Event: `manifold_change_thing_name(eci, picoID, changedName)` (note: KRL expects `changedName`)
-- **Thing pico (safeandmine ruleset)**
-  - Query: `safeandmine_getInformation(eci, info?)`
-  - Query: `safeandmine_getTags(eci)`
-  - Event: `safeandmine_update(eci, { name,email,phone,message, shareName,shareEmail,sharePhone })`
-  - Event: `safeandmine_delete(eci, toDelete?)`
-  - Event: `safeandmine_newtag(eci, tagID, domain)` (maps to KRL event `safeandmine new_tag`)
+  - Query: `manifold_getThings()`
+  - Event: `manifold_create_thing(thingName)`
+  - Event: `manifold_remove_thing(thingName)`
+  - Event: `manifold_change_thing_name(thingName, changedName)` (note: KRL expects `changedName`)
+- **Thing pico (safeandmine + journal ruleset)**
+  - Query: `scanTag(tagId, domain)`
+  - Query: `getNote(thingName, title)`
+  - Event: `updateOwnerInfo(thingName, ownerInfo: { name,email,phone,message, shareName,shareEmail,sharePhone })`
+  - Event: `safeandmine_newtag(thingName, tagID, domain)`
+  - Event: `addNote(thingName, title, content)`
 
 ## MCP server (next step)
 
