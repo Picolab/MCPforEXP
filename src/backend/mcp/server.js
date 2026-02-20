@@ -30,7 +30,7 @@ const {
   updateOwnerInfo,
   addNote,
   getNote,
-} = require("../backend/krl-operation.js");
+} = require("../krl-operation.js");
 
 function asJsonContent(obj) {
   return [{ type: "text", text: JSON.stringify(obj, null, 2) }];

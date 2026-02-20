@@ -2,12 +2,11 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const {
   getRootECI,
-  picoHasRuleset,
   getECIByTag,
   getChildEciByName,
   traverseHierarchy,
-  installRuleset,
-} = require("./utility.js");
+} = require("./utility/eci-utility.js");
+const { picoHasRuleset, installRuleset } = require("./utility/api-utility.js");
 
 async function main() {
   console.log(await traverseHierarchy());
@@ -81,6 +80,7 @@ async function createThing(thingName) {
   }
 
   const manifoldEci = await traverseHierarchy();
+  console.log("traverseHierarchy result in createThing:", manifoldEci);
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
@@ -116,6 +116,8 @@ async function createThing(thingName) {
 }
 
 /**
+ * @async
+ * @function addNote
  * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
  * @param {*} title - The title of the note that is being attached
  * @param {*} content - The content of the note attached to the title
@@ -162,12 +164,13 @@ async function addNote(thingName, title, content) {
 }
 
 /**
+ * @async
+ * @function getNote
  * @param {*} thingName - The name of the thing in manifold (the thing with the journal app)
  * @param {*} title - The title of the note that is being attached
  *
- * This function, given the name of the thing and the title of the note returns the note with that title.
+ * Given the name of the thing and the title of the note returns the note with that title.
  */
-
 async function getNote(thingName, title) {
   try {
     const manifoldEci = await traverseHierarchy();
@@ -209,8 +212,10 @@ async function getNote(thingName, title) {
 /**
  * Removes a Thing Pico by it's name.
  * @async
+ * @function deleteThing
  * @param {string} thingName - The name of the Thing Pico to remove.
  * @returns {Promise<Object>} The engine's event response.
+ * @throws {Error} If the thing is not found or if the engine request fails.
  */
 async function deleteThing(thingName) {
   const picoID = await getPicoIDByName(thingName);
@@ -237,9 +242,11 @@ async function deleteThing(thingName) {
 /**
  * Updates the display name of an existing Thing Pico (by thing name).
  * @async
+ * @function manifold_change_thing_name
  * @param {string} thingName - The current name of the Thing.
  * @param {string} changedName - The new name for the Thing.
  * @returns {Promise<Object>} The engine's event response.
+ * @throws {Error} If the thing is not found or if the engine request fails.
  */
 async function manifold_change_thing_name(thingName, changedName) {
   const picoID = await getPicoIDByName(thingName);
@@ -315,7 +322,8 @@ async function setSquareTag(thingName, tagId, domain = "sqtg") {
 
 /**
  * Gets owner info from a given tag
- *
+ * @async
+ * @function scanTag
  * @param {string} tagId
  * @param {string} [domain=sqtg]
  *
@@ -383,7 +391,8 @@ async function scanTag(tagId, domain = "sqtg") {
 
 /**
  * Updates a thing's owner info from an object that defines which attributes should be updated
- *
+ * @async
+ * @function updateOwnerInfo
  * @param {string} thingName
  * @param {object} ownerInfo
  * {
@@ -457,8 +466,10 @@ async function updateOwnerInfo(thingName, ownerInfo) {
 /**
  * Resolves a thing name to its picoID using the list of things from the manifold.
  * @async
+ * @function getPicoIDByName
  * @param {string} thingName - The name of the Thing Pico.
  * @returns {Promise<string>} The picoID (ECI) of the thing.
+ * @throws {Error} If the thing is not found in the list of things.
  */
 async function getPicoIDByName(thingName) {
   const things = await listThings();

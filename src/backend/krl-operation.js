@@ -1,5 +1,5 @@
 const api = require("./api-wrapper");
-const { normalizeId, okResponse, errResponse } = require("./krl-json");
+const { okResponse, errResponse } = require("./krl-json");
 
 /**
  * Uniform KRL operations (events/queries) for MCP integration.
@@ -121,6 +121,14 @@ async function safeandmine_newtag(thingName, tagID, domain, id) {
   }
 }
 
+/**
+ * Retrieves information about a tag from the global registry and the Thing Pico.
+ * @async
+ * @param {string} tagId The unique ID of the tag to scan.
+ * @param {string} domain The namespace of the tag (e.g., 'sqtg').
+ * @param {string|number} id An optional correlation ID for the request.
+ * @returns
+ */
 async function scanTag(tagId, domain, id) {
   try {
     const data = await api.scanTag(tagId, domain);
@@ -134,6 +142,14 @@ async function scanTag(tagId, domain, id) {
   }
 }
 
+/**
+ * Updates a thing's owner information based on the provided attributes. The ownerInfo object includes:
+ * name, email, phone, message, and booleans on which attributes to share.
+ * @param {string} thingName The name of the thing pico to update owner info for.
+ * @param {Object} ownerInfo The owner information to update.
+ * @param {string|number} id An optional correlation ID for the request.
+ * @returns {Promise<KrlResponse>} Standard KRL envelope.
+ */
 async function updateOwnerInfo(thingName, ownerInfo, id) {
   try {
     const data = await api.updateOwnerInfo(thingName, ownerInfo);
@@ -147,6 +163,15 @@ async function updateOwnerInfo(thingName, ownerInfo, id) {
   }
 }
 
+/**
+ * Adds a note to a thing pico's journal with the given title and content.
+ * @async
+ * @param {string} thingName The name of the thing Pico to add a note to.
+ * @param {string} title The title of the note.
+ * @param {string} content The content of the note.
+ * @param {string|number} id An optional correlation ID for the request.
+ * @returns {Promise<KrlResponse>} Standard KRL envelope.
+ */
 async function addNote(thingName, title, content, id) {
   try {
     const data = await api.addNote(thingName, title, content);
@@ -160,6 +185,13 @@ async function addNote(thingName, title, content, id) {
   }
 }
 
+/**
+ * Retrieves a note from a thing pico's journal by title.
+ * @param {string} thingName The name of the thing Pico.
+ * @param {string} title The title of the note.
+ * @param {string|number} id An optional correlation ID for the request.
+ * @returns {Promise<KrlResponse>} Standard KRL envelope.
+ */
 async function getNote(thingName, title, id) {
   try {
     const data = await api.getNote(thingName, title);
