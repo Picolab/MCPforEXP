@@ -1,5 +1,3 @@
-const { tr } = require("zod/v4/locales");
-
 /**
  * Fetches the root ECI of the UI pico from the engine's local context.
  * * @async
