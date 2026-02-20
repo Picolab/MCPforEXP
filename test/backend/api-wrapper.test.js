@@ -5,7 +5,67 @@ const {
   deleteThing,
   scanTag,
 } = require("../../src/backend/api-wrapper");
-const { getECIByTag } = require("../../src/backend/utility/eci-utility.js");
+const {
+  installRuleset,
+  picoHasRuleset,
+} = require("../../src/backend/utility/api-utility.js");
+const {
+  getECIByTag,
+  getRootECI,
+} = require("../../src/backend/utility/eci-utility.js");
+
+let manifoldEci = "";
+let rootECI = "";
+
+beforeAll(async () => {
+  console.log("Installing Manifold...");
+  rootECI = await getRootECI();
+  console.log("ROOT ECI: ", rootECI);
+  await installRuleset(
+    rootECI,
+    "/app/Manifold-api/io.picolabs.manifold_bootstrap.krl",
+  );
+});
+
+describe("Integration Test: getRootECI", () => {
+  test("successfully calls rootECI without error", async () => {
+    await expect(getRootECI()).resolves.not.toThrow();
+  }, 20000);
+
+  test("getRootECI matches our rootECI retrieved in beforeAll", async () => {
+    const newRootECI = await getRootECI();
+    await expect(newRootECI).toEqual(rootECI);
+  });
+});
+
+describe("Integration Test: getECIByTag", () => {
+  test("successfully calls getECIByTag without erroring", async () => {
+    await expect(getRootECI()).resolves.not.toThrow();
+  });
+});
+
+describe("integration Test: picoHasRuleset", () => {
+  test("successfully gets if a pico has a specific ruleset", async () => {
+    picoHasRuleset(rootECI, "bootstrap");
+  });
+});
+
+/**
+ * describe("Integration Test: createThing", () => {
+  test("successfully creates a new Thing Pico", async () => {
+    const thingName = "Red Travel Case";
+
+    // Call the real createThing
+    const thingECI = await createThing(manifoldECI, thingName);
+
+    // Verify that the Thing exists in the engine
+    const checkECI = await getChildEciByName(manifoldECI, thingName);
+    expect(checkECI).toBe(thingECI);
+
+    console.log("Created Thing ECI:", thingECI);
+  }, 20000); // test timeout
+});
+ */
 
 // test("get initial ECI", async () => {
 //   try {
