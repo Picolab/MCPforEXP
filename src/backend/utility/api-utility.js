@@ -72,14 +72,8 @@ async function installOwner(eci) {
  */
 async function picoHasRuleset(picoEci, rid) {
   try {
-    const resp = await fetch(
-      `http://localhost:3000/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`,
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-
-    if (!resp.ok) return false;
+    const requestEndpoint = `/c/${picoEci}/query/io.picolabs.pico-engine-ui/pico`;
+    const resp = await getFetchRequest(requestEndpoint);
 
     const data = await resp.json();
 
@@ -185,10 +179,42 @@ async function setupRegistry() {
   );
 }
 
+async function checkENVVariable(variable, variableName) {
+  if (variable !== null) {
+    return variable;
+  } else {
+    throw new Error(
+      `The enviornment variable ${variableName} is null in the enviornment`,
+    );
+  }
+}
+
+async function getFetchRequest(requestEndpoint) {
+  const baseURL = await checkENVVariable(
+    process.env.PICO_ENGINE_BASE_URL,
+    "PICO_ENGINE_BASE_URL",
+  );
+  const requestURL = baseURL + requestEndpoint;
+  console.log("getFetchRequest: ", requestURL);
+
+  try {
+    const response = await fetch(requestURL);
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
+    }
+
+    return response;
+  } catch (err) {
+    console.log("Simple request failed: ", err);
+    throw err;
+  }
+}
+
 module.exports = {
   picoHasRuleset,
   installOwner,
   setupRegistry,
   manifold_isAChild,
   installRuleset,
+  getFetchRequest,
 };

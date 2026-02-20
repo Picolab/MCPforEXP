@@ -1,3 +1,6 @@
+const { tr } = require("zod/v4/locales");
+const { getFetchRequest } = require("./api-utility");
+
 /**
  * Fetches the root ECI of the UI pico from the engine's local context.
  * * @async
@@ -7,11 +10,8 @@
  */
 async function getRootECI() {
   try {
-    const response = await fetch(`http://localhost:3000/api/ui-context`);
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
+    const requestEndpoint = "/api/ui-context";
+    const response = await getFetchRequest(requestEndpoint);
 
     const data = await response.json();
     return data.eci;
@@ -99,13 +99,8 @@ async function getChildEciByName(parentEci, childName) {
  */
 async function getECIByTag(owner_eci, tag) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
+    const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`;
+    const response = await getFetchRequest(requestEndpoint);
 
     const data = await response.json();
     const channels = data.channels;
