@@ -10,10 +10,11 @@ The project is structured to clearly separate concerns and support scalability a
 ├── scripts/
 ├── src/
 │   ├── backend/
-│   │   ├── mcp/
+│   │   ├── mcp-server/
 │   │   ├── utility/
 │   │   └── llm/
-│   └── ui/
+│   ├── mcp-client/
+│   └── frontend/
 ├── test/
 │   ├── backend/
 │   │   ├── server/
@@ -183,3 +184,17 @@ npm run mcp:server
 ```
 
 Once this is running, an MCP client (like a desktop app / agent runner) can connect over stdio and call tools like `manifold_getThings` with `{ "eci": "..." }`.
+
+## LLM Integration
+
+To get the mcp-client command interface working, make sure to install the AWS SDK dependency:
+
+```bash
+npm install @aws-sdk/client-bedrock-runtime
+```
+
+Then to get the interface up and running:
+
+```bash
+npm run client
+```
