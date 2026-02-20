@@ -9,8 +9,8 @@
     "test": "jest",
     "mcp:server": "node src/backend/mcp-server/server.js",
     "test:mcp": "node scripts/test-mcp-manual.js",
-    "client": "node src/mcp-client/index.js"
-    "test:docker": "cd scripts && bash ./docker-test-runner.sh",
+    "client": "node src/mcp-client/index.js",
+    "test:docker": "cd scripts && bash ./docker-test-runner.sh"
   },
   "repository": {
     "type": "git",
