@@ -12,7 +12,7 @@ const eciUtility = require("../../../src/backend/utility/eci-utility");
 const apiUtility = require("../../../src/backend/utility/api-utility");
 
 // Mock the external dependencies
-jest.mock("../../src/backend/utility/api-utility", () => ({
+jest.mock("../../../src/backend/utility/api-utility", () => ({
   getFetchRequest: jest.fn(),
 }));
 
