@@ -357,6 +357,10 @@ class MCPClient {
     await this.mcp.close();
   }
 }
+
+// Export for testing
+module.exports = { MCPClient };
+
 async function main() {
   const serverPath = process.argv[2] || "src/backend/mcp-server/server.js";
   if (process.argv.length < 3) {
