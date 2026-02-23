@@ -181,6 +181,24 @@ async function traverseHierarchy() {
   return manifoldChannel;
 }
 
+async function getSkillsRegistryECI() {
+  try {
+    const rootECI = await getRootECI();
+    const skillsRegistryUI = await getChildEciByName(
+      rootECI,
+      "Skills Registry",
+    );
+    const skillsRegistryECI = await getECIByTag(
+      skillsRegistryUI,
+      "skills_registry",
+    );
+
+    return skillsRegistryECI;
+  } catch (error) {
+    console.error("ECI error:", error);
+  }
+}
+
 module.exports = {
   getRootECI,
   getInitializationECI,
@@ -189,4 +207,5 @@ module.exports = {
   getChildEciByName,
   getThingManifoldChannel,
   traverseHierarchy,
+  getSkillsRegistryECI,
 };
