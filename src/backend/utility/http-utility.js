@@ -18,7 +18,7 @@ async function getFetchRequest(requestEndpoint) {
   // This automatically manages slashes safely
   const requestURL = new URL(requestEndpoint, baseURL).href;
 
-  console.error("getFetchRequest attempting:", requestURL);
+  // console.error("getFetchRequest attempting:", requestURL);
 
   try {
     const response = await fetch(requestURL);
