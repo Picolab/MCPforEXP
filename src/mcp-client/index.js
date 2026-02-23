@@ -33,6 +33,7 @@ class MCPClient {
     });
     this.mcp = new Client({ name: "mcp-client-cli", version: "1.0.0" });
   }
+
   async refreshTools() {
     console.log("Refreshing available tools...");
     const toolsResult = await this.mcp.listTools();
@@ -162,6 +163,7 @@ class MCPClient {
       `Loaded ${this.tools.length} tools: ${this.tools.map((t) => t.toolSpec.name).join(", ")}`,
     );
   }
+
   async connectToServer(serverScriptPath) {
     try {
       const command = serverScriptPath.endsWith(".py")
@@ -180,8 +182,23 @@ class MCPClient {
       throw e;
     }
   }
+
   async processQuery(query) {
-    let messages = [{ role: "user", content: [{ text: query }] }];
+    // 1. Fetch existing history from the Pico
+    const fullHistory = await this.mcp.callTool({
+      name: "get_manifold_context", // You'll expose this via your MCP Server
+      arguments: {},
+    });
+
+    const history = fullHistory.slice(-10);
+
+    // 2. Format history for Bedrock (messages must alternate user/assistant)
+    let messages = [...history, { role: "user", content: [{ text: query }] }];
+
+    if (messages.length > 0 && messages[0].role !== "user") {
+      messages.shift(); // Remove the leading assistant message
+    }
+
     try {
       // Validate tools before sending to Bedrock
       if (!this.tools || this.tools.length === 0) {
@@ -313,6 +330,18 @@ class MCPClient {
             }
           }
         }
+
+        // At the end of processQuery, before returning finalText
+        await this.mcp.callTool({
+          name: "save_manifold_context",
+          arguments: {
+            messages: [
+              { role: "user", content: [{ text: query }] },
+              { role: "assistant", content: [{ text: finalText.join("\n") }] },
+            ],
+          },
+        });
+
         return finalText.length > 0
           ? finalText.join("\n")
           : "Model provided no text response.";
@@ -323,6 +352,7 @@ class MCPClient {
       return `Error processing query: ${e.message}`;
     }
   }
+
   async chatLoop() {
     const rl = readline.createInterface({
       input: process.stdin,
@@ -357,6 +387,7 @@ class MCPClient {
     await this.mcp.close();
   }
 }
+
 async function main() {
   const serverPath = process.argv[2] || "src/backend/mcp-server/server.js";
   if (process.argv.length < 3) {
@@ -374,4 +405,5 @@ async function main() {
     await client.cleanup();
   }
 }
+
 main();
