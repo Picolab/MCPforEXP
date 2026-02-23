@@ -1,3 +1,5 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 const { getRootECI } = require("../src/backend/utility/eci-utility.js");
 const { setupRegistry } = require("../src/backend/utility/api-utility.js");
 
