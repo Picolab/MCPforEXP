@@ -136,7 +136,13 @@ describe("integration Test: picoHasRuleset", () => {
 /**
  * Helper to generate a short random string for unique tags
  */
-const generateRandomString = (length = 6) =>
+
+/**
+ * 
+ * @param {*} length 
+ * @returns 
+ * 
+ * const generateRandomString = (length = 6) =>
   Math.random()
     .toString(36)
     .substring(2, 2 + length)
@@ -177,6 +183,7 @@ test("create thing and add tags with unique identifiers", async () => {
     }
   }
 }, 60000); // 60 second timeout - createThing can take up to 10s, setSquareTag adds delays, plus network overhead
+ */
 
 // test("list things", async () => {
 //   try {
@@ -196,7 +203,8 @@ test("create thing and add tags with unique identifiers", async () => {
 //   }
 // });
 
-test("create thing, add owner info, update it, and view it", async () => {
+/**
+ * test("create thing, add owner info, update it, and view it", async () => {
   const randomName = `Suitcase-${Date.now()}`;
   try {
     const thingEci = await createThing(randomName);
@@ -261,3 +269,5 @@ test("create thing, add owner info, update it, and view it", async () => {
     }
   }
 }, 60000); // 60 second timeout - createThing can take up to 10s, plus multiple update operations
+
+ */

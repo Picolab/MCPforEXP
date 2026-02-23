@@ -16,7 +16,15 @@ async function installRuleset(eci, filePath) {
     const rid = filePath.split("/").at(-1).replace(".krl", "");
     if (await picoHasRuleset(eci, rid)) return;
 
-    const response = await fetch(
+    const requestEndpoint = `/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`;
+
+    const response = await postFetchRequest(requestEndpoint, {
+      url: filePath,
+      config: {},
+    });
+
+    /**
+     * const response = await fetch(
       `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
       {
         method: "POST",
@@ -24,6 +32,7 @@ async function installRuleset(eci, filePath) {
         body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
       },
     );
+     */
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -206,6 +215,34 @@ async function getFetchRequest(requestEndpoint) {
     return response;
   } catch (err) {
     console.log("Simple request failed: ", err);
+    throw err;
+  }
+}
+
+async function postFetchRequest(requestEndpoint, requestBody) {
+  const baseURL = await checkENVVariable(
+    process.env.PICO_ENGINE_BASE_URL,
+    "PICO_ENGINE_BASE_URL",
+  );
+  const requestURL = baseURL + requestEndpoint;
+
+  console.log("postFetchRequest: ", requestURL);
+
+  try {
+    const response = await fetch(requestURL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP ${response.status}: ${text}`);
+    }
+  } catch (err) {
+    console.error("POST FETCH FAILED: ", err);
     throw err;
   }
 }
