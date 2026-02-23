@@ -108,6 +108,37 @@ async function addToolToSkill(skillName, toolName, toolContent) {
   return data;
 }
 
-async function removeToolFromSkill() {}
+/**
+ * Remove an existing tool from an existing skill, specifying the skill name and the tool name
+ * @async
+ * @function removeToolFromSkill
+ * @param {string} [skillName] - The name of the skill to remove the tool from
+ * @param {string} [toolName] - The name of the tool being removed
+ * @returns {Promise<object>} - Pico event response
+ */
+async function removeToolFromSkill(skillName, toolName) {
+  const eci = await getSkillsRegistryECI();
 
-module.exports = { getSkills, addSkill, removeSkill, addToolToSkill };
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/event-wait/manifold/remove_tool`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: skillName,
+        tool_name: toolName,
+      }),
+    },
+  );
+
+  const data = await response.json();
+  return data;
+}
+
+module.exports = {
+  getSkills,
+  addSkill,
+  removeSkill,
+  addToolToSkill,
+  removeToolFromSkill,
+};

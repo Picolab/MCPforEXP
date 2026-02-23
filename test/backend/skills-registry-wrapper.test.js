@@ -6,6 +6,7 @@ const {
   addSkill,
   removeSkill,
   addToolToSkill,
+  removeToolFromSkill,
 } = require("../../src/backend/skills-registry-wrapper.js");
 
 test("Get ECI", async () => {
@@ -58,4 +59,19 @@ test("Add Tool", async () => {
     "Test tool 2 placeholder content",
   );
   expect(addedTool.directives[0].name).toEqual("tool updated");
+});
+
+test("Remove Tool", async () => {
+  const addedSkill = await addSkill(
+    "SafeAndMine",
+    "io.picolabs.safeandmine.krl",
+    { "Test Tool": "Test tool placeholder content" },
+  );
+  const addedTool = await addToolToSkill(
+    "SafeAndMine",
+    "Test Tool 2",
+    "Test tool 2 placeholder content",
+  );
+  const removedTool = await removeToolFromSkill("SafeAndMine", "Test Tool 2");
+  expect(removedTool.directives[0].name).toEqual("tool removed");
 });
