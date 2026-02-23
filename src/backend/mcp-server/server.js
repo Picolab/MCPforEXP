@@ -1,3 +1,5 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../../../.env") });
 /**
  * Minimal MCP server over stdio (the most common way to run MCP locally).
  *

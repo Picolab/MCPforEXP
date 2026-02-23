@@ -155,7 +155,6 @@ async function addNote(thingName, title, content) {
       },
     );
     const data = await response.json();
-    console.log("Data is", data);
     return data;
   } catch (err) {
     console.error("Error in addNote:", err);

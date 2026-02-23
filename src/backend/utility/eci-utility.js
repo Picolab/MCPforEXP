@@ -1,5 +1,4 @@
-const { tr } = require("zod/v4/locales");
-const { getFetchRequest } = require("./api-utility");
+const { getFetchRequest } = require("./http-utility");
 
 /**
  * Fetches the root ECI of the UI pico from the engine's local context.
@@ -13,6 +12,9 @@ async function getRootECI() {
     const requestEndpoint = "/api/ui-context";
     const response = await getFetchRequest(requestEndpoint);
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
     return data.eci;
   } catch (error) {
@@ -77,7 +79,6 @@ async function getChildEciByName(parentEci, childName) {
       }
     }
 
-    console.log("Returning null from getChildEciByName");
     return null; // No match found after checking all children
   } catch (error) {
     console.error(
@@ -138,6 +139,7 @@ async function getManifoldECI(owner_eci) {
     }
 
     const data = await response.json();
+    console.error("getManifoldECI response data:", data);
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
@@ -166,12 +168,17 @@ async function getThingManifoldChannel(thingName) {
  * @returns The eci of the manifold channel on the manifold pico.
  */
 async function traverseHierarchy() {
-  const rootECI = await getRootECI();
-  const ownerECI = await getChildEciByName(rootECI, "Owner");
-  const ownerInitializationECI = await getInitializationECI(ownerECI);
-  const manifoldECI = await getManifoldECI(ownerInitializationECI);
-  const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
-  return manifoldChannel;
+  try {
+    const rootECI = await getRootECI();
+    const ownerECI = await getChildEciByName(rootECI, "Owner");
+    const ownerInitializationECI = await getInitializationECI(ownerECI);
+    const manifoldECI = await getManifoldECI(ownerInitializationECI);
+    const manifoldChannel = await getECIByTag(manifoldECI, "manifold");
+    return manifoldChannel;
+  } catch (error) {
+    console.error("Error traversing hierarchy:", error);
+    throw error;
+  }
 }
 
 module.exports = {
