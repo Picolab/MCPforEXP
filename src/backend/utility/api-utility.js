@@ -131,10 +131,11 @@ async function manifold_isAChild(thingName) {
  * @throws {Error} If the bootstrap process fails to complete within 30 seconds.
  */
 async function setupRegistry() {
+  console.log("Starting Manifold bootstrap process...");
   const rootEci = await getRootECI();
   const filePath = path.resolve(
     __dirname,
-    "../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
+    "../../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
   );
   const fileUrl = pathToFileURL(filePath).href;
 
