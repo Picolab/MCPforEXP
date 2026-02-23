@@ -27,7 +27,7 @@ async function getSkills(skillName = "") {
  * Add a new skill to the skill registry, specifying its name, rid, tools, and optionally the URL of its KRL
  * @async
  * @function addSkill
- * @param {string} [name] - The name of the skill to create
+ * @param {string} [skillName] - The name of the skill to create
  * @param {string} [rid] - The rule ID of the skill (ex: io.picolabs.manifold_owner.krl)
  * @param {string} [tools] - A stringified map of tools the skill provides
  * @param {string} [url=""] - Optional URL of the skill's KRL
@@ -54,10 +54,33 @@ async function addSkill(skillName, rid, tools, url = "") {
   return data;
 }
 
-async function removeSkills() {}
+/**
+ * Remove a specified skill from the skills registry
+ * @async
+ * @function removeSkill
+ * @param {string} [skillName] - The name of the skill to remove
+ * @returns {Promise<object>} - Pico event response
+ */
+async function removeSkill(skillName) {
+  const eci = await getSkillsRegistryECI();
+
+  const response = await fetch(
+    `http://localhost:3000/c/${eci}/event-wait/manifold/remove_skill`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: skillName,
+      }),
+    },
+  );
+
+  const data = await response.json();
+  return data;
+}
 
 async function addToolToSkill() {}
 
 async function removeToolFromSkill() {}
 
-module.exports = { getSkills, addSkill };
+module.exports = { getSkills, addSkill, removeSkill };

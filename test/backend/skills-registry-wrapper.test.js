@@ -4,6 +4,7 @@ const {
 const {
   getSkills,
   addSkill,
+  removeSkill,
 } = require("../../src/backend/skills-registry-wrapper.js");
 
 test("Get ECI", async () => {
@@ -32,4 +33,14 @@ test("Get Skills", async () => {
   const multipleSkills = await getSkills();
   expect(multipleSkills.SafeAndMine).toBeDefined();
   expect(multipleSkills.Journal).toBeDefined();
+});
+
+test("Remove Skill", async () => {
+  const addedSkill = await addSkill(
+    "SafeAndMine",
+    "io.picolabs.safeandmine.krl",
+    "Tools placeholder",
+  );
+  const response = await removeSkill("SafeAndMine");
+  expect(response.directives[0].name).toEqual("skill removed");
 });
