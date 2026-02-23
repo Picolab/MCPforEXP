@@ -1,6 +1,7 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { getRootECI, getECIByTag } = require("./eci-utility");
+const { getFetchRequest } = require("./http-utility");
 
 /**
  * Installs a KRL ruleset on a pico using its file URL.
@@ -130,20 +131,19 @@ async function manifold_isAChild(thingName) {
  * @throws {Error} If the bootstrap process fails to complete within 30 seconds.
  */
 async function setupRegistry() {
+  console.log("Starting Manifold bootstrap process...");
   const rootEci = await getRootECI();
   const filePath = path.resolve(
     __dirname,
-    "../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
+    "../../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
   );
   const fileUrl = pathToFileURL(filePath).href;
 
   await installRuleset(rootEci, fileUrl);
-  console.log("Bootstrap ruleset installed. Waiting for completion...");
 
   let bootstrapEci = null;
   const maxAttempts = 30;
 
-  console.log("Waiting for bootstrap to complete (this may take up to 30s):");
   for (let i = 0; i < maxAttempts; i++) {
     try {
       if (!bootstrapEci) {
@@ -179,42 +179,10 @@ async function setupRegistry() {
   );
 }
 
-async function checkENVVariable(variable, variableName) {
-  if (variable !== null) {
-    return variable;
-  } else {
-    throw new Error(
-      `The enviornment variable ${variableName} is null in the enviornment`,
-    );
-  }
-}
-
-async function getFetchRequest(requestEndpoint) {
-  const baseURL = await checkENVVariable(
-    process.env.PICO_ENGINE_BASE_URL,
-    "PICO_ENGINE_BASE_URL",
-  );
-  const requestURL = baseURL + requestEndpoint;
-  console.log("getFetchRequest: ", requestURL);
-
-  try {
-    const response = await fetch(requestURL);
-    if (!response.ok) {
-      throw new Error(`${response.status}`);
-    }
-
-    return response;
-  } catch (err) {
-    console.log("Simple request failed: ", err);
-    throw err;
-  }
-}
-
 module.exports = {
   picoHasRuleset,
   installOwner,
   setupRegistry,
   manifold_isAChild,
   installRuleset,
-  getFetchRequest,
 };
