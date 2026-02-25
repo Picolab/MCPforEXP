@@ -136,41 +136,53 @@ describe("MCP Server Integration", () => {
       }
     }, 5000);
 
-    test("should return error for invalid tool name", async () => {
+    test("should return error payload for invalid tool name", async () => {
       if (!isConnected) {
         return;
       }
 
-      await expect(
-        Promise.race([
-          client.callTool({
-            name: "nonexistent_tool",
-            arguments: {},
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Tool call timeout")), 3000),
-          ),
-        ]),
-      ).rejects.toThrow();
+      const result = await Promise.race([
+        client.callTool({
+          name: "nonexistent_tool",
+          arguments: {},
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Tool call timeout")), 3000),
+        ),
+      ]);
+
+      expect(result).toBeDefined();
+      expect(result.isError).toBe(true);
+      expect(result.content).toBeDefined();
+      const textContent = result.content.find((c) => c.type === "text");
+      expect(textContent).toBeDefined();
+      expect(textContent.text).toContain("Tool nonexistent_tool not found");
     }, 5000);
 
-    test("should return error for invalid arguments", async () => {
+    test("should return error payload for invalid arguments", async () => {
       if (!isConnected) {
         return;
       }
 
       // manifold_create_thing requires 'name' parameter
-      await expect(
-        Promise.race([
-          client.callTool({
-            name: "manifold_create_thing",
-            arguments: {}, // Missing required 'name'
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Tool call timeout")), 3000),
-          ),
-        ]),
-      ).rejects.toThrow();
+      const result = await Promise.race([
+        client.callTool({
+          name: "manifold_create_thing",
+          arguments: {}, // Missing required 'name'
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Tool call timeout")), 3000),
+        ),
+      ]);
+
+      expect(result).toBeDefined();
+      expect(result.isError).toBe(true);
+      expect(result.content).toBeDefined();
+      const textContent = result.content.find((c) => c.type === "text");
+      expect(textContent).toBeDefined();
+      expect(textContent.text).toContain(
+        "Invalid arguments for tool manifold_create_thing",
+      );
     }, 5000);
   });
 
