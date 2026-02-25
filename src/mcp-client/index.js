@@ -12,6 +12,10 @@ const dotenv = require("dotenv");
 const path = require("path");
 // Ensure dotenv finds the .env at the project root
 dotenv.config({ path: path.join(__dirname, "../../.env") });
+const {
+  getManifoldContext,
+  updateManifoldContext,
+} = require("../backend/llm/llm-context.js");
 class MCPClient {
   mcp;
   bedrock;
@@ -33,6 +37,7 @@ class MCPClient {
     });
     this.mcp = new Client({ name: "mcp-client-cli", version: "1.0.0" });
   }
+
   async refreshTools() {
     console.log("Refreshing available tools...");
     const toolsResult = await this.mcp.listTools();
@@ -162,6 +167,7 @@ class MCPClient {
       `Loaded ${this.tools.length} tools: ${this.tools.map((t) => t.toolSpec.name).join(", ")}`,
     );
   }
+
   async connectToServer(serverScriptPath) {
     try {
       const command = serverScriptPath.endsWith(".py")
@@ -180,8 +186,19 @@ class MCPClient {
       throw e;
     }
   }
+
   async processQuery(query) {
-    let messages = [{ role: "user", content: [{ text: query }] }];
+    // 1. Fetch existing history from the Pico
+    const fullHistory = await getManifoldContext();
+    const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
+
+    // 2. Format history for Bedrock (messages must alternate user/assistant)
+    let messages = [...history, { role: "user", content: [{ text: query }] }];
+
+    if (messages.length > 0 && messages[0].role !== "user") {
+      messages.shift(); // Remove the leading assistant message
+    }
+
     try {
       // Validate tools before sending to Bedrock
       if (!this.tools || this.tools.length === 0) {
@@ -257,10 +274,12 @@ class MCPClient {
         });
 
         const response = await this.bedrock.send(command);
-        const finalText = [];
         const outputMessage = response.output?.message;
         if (!outputMessage) return "Error: No response from model.";
+
+        const finalText = [];
         messages.push(outputMessage);
+
         for (const content of outputMessage.content || []) {
           if (content.text) {
             finalText.push(content.text);
@@ -272,6 +291,7 @@ class MCPClient {
               name: toolName,
               arguments: toolArgs,
             });
+
             // Extract text content from MCP tool result
             let toolResultText = "";
             if (result.content && Array.isArray(result.content)) {
@@ -282,6 +302,7 @@ class MCPClient {
             } else {
               toolResultText = JSON.stringify(result, null, 2);
             }
+
             const toolResult = {
               role: "user",
               content: [
@@ -295,6 +316,7 @@ class MCPClient {
               ],
             };
             messages.push(toolResult);
+
             const finalResponse = await this.bedrock.send(
               new ConverseCommand({
                 modelId: this.modelId,
@@ -306,16 +328,20 @@ class MCPClient {
             const lastContent = finalResponse.output?.message?.content?.[0];
             if (lastContent?.text) {
               finalText.push(lastContent.text);
-            } else {
-              finalText.push(
-                "[Tool execution successful, but no follow-up text provided]",
-              );
+              messages.push(finalResponse.output.message);
             }
           }
         }
-        return finalText.length > 0
-          ? finalText.join("\n")
-          : "Model provided no text response.";
+
+        const assistantResponse = finalText.join("\n");
+
+        await updateManifoldContext([
+          ...history,
+          { role: "user", content: [{ text: query }] },
+          { role: "assistant", content: [{ text: assistantResponse }] },
+        ]);
+
+        return assistantResponse || "Model provided no text response.";
       } catch (e) {
         return `Error processing query: ${e.message}`;
       }
@@ -323,6 +349,7 @@ class MCPClient {
       return `Error processing query: ${e.message}`;
     }
   }
+
   async chatLoop() {
     const rl = readline.createInterface({
       input: process.stdin,
@@ -357,6 +384,7 @@ class MCPClient {
     await this.mcp.close();
   }
 }
+
 async function main() {
   const serverPath = process.argv[2] || "src/backend/mcp-server/server.js";
   if (process.argv.length < 3) {
@@ -374,4 +402,5 @@ async function main() {
     await client.cleanup();
   }
 }
+
 main();
