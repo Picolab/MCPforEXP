@@ -17,6 +17,7 @@ const {
   getManifoldContext,
   updateManifoldContext,
 } = require("../backend/llm/llm-context.js");
+
 class MCPClient {
   mcp;
   bedrock;
@@ -197,116 +198,127 @@ class MCPClient {
     // 2. Format history for Bedrock
     let messages = [...history, { role: "user", content: [{ text: query }] }];
     if (messages.length > 0 && messages[0].role !== "user") {
-        messages.shift();
+      messages.shift();
     }
 
     try {
-        // 3. Prepare and Validate Tools FIRST
-        if (!this.tools || this.tools.length === 0) {
-            return "Error: No tools available. Try /refresh to reload tools.";
-        }
+      // 3. Prepare and Validate Tools FIRST
+      if (!this.tools || this.tools.length === 0) {
+        return "Error: No tools available. Try /refresh to reload tools.";
+      }
 
-        const toolsForBedrock = this.tools
-            .filter((tool) => {
-                const schema = tool.toolSpec?.inputSchema;
-                return schema && typeof schema === "object" && schema.type && schema.properties;
-            })
-            .map((tool) => {
-                const schema = tool.toolSpec.inputSchema;
-                return {
-                    toolSpec: {
-                        name: tool.toolSpec.name,
-                        description: tool.toolSpec.description || "Manifold Tool",
-                        inputSchema: {
-                            json: {
-                                type: "object",
-                                properties: { ...schema.properties },
-                                required: Array.isArray(schema.required) ? [...schema.required] : [],
-                            }
-                        },
-                    },
-                };
-            });
-
-        // 4. Initial LLM Call
-        const command = new ConverseCommand({
-            modelId: this.modelId,
-            system: [{ text: systemPrompt }], // Injected system prompt
-            messages,
-            toolConfig: { tools: toolsForBedrock },
+      const toolsForBedrock = this.tools
+        .filter((tool) => {
+          const schema = tool.toolSpec?.inputSchema;
+          return (
+            schema &&
+            typeof schema === "object" &&
+            schema.type &&
+            schema.properties
+          );
+        })
+        .map((tool) => {
+          const schema = tool.toolSpec.inputSchema;
+          return {
+            toolSpec: {
+              name: tool.toolSpec.name,
+              description: tool.toolSpec.description || "Manifold Tool",
+              inputSchema: {
+                json: {
+                  type: "object",
+                  properties: { ...schema.properties },
+                  required: Array.isArray(schema.required)
+                    ? [...schema.required]
+                    : [],
+                },
+              },
+            },
+          };
         });
 
-        const response = await this.bedrock.send(command);
-        const outputMessage = response.output?.message;
-        if (!outputMessage) return "Error: No response from model.";
+      // 4. Initial LLM Call
+      const command = new ConverseCommand({
+        modelId: this.modelId,
+        system: [{ text: systemPrompt }], // Injected system prompt
+        messages,
+        toolConfig: { tools: toolsForBedrock },
+      });
 
-        const finalText = [];
-        messages.push(outputMessage);
+      const response = await this.bedrock.send(command);
+      const outputMessage = response.output?.message;
+      if (!outputMessage) return "Error: No response from model.";
 
-        // 5. Handle Text or Tool Use
-        for (const content of outputMessage.content || []) {
-            if (content.text) {
-                finalText.push(content.text);
-            } else if (content.toolUse) {
-                const toolName = content.toolUse.name;
-                const toolArgs = content.toolUse.input ?? {};
-                
-                console.log(`[Tool Call: ${toolName}]`);
-                const result = await this.mcp.callTool({
-                    name: toolName,
-                    arguments: toolArgs,
-                });
+      const finalText = [];
+      messages.push(outputMessage);
 
-                // Format tool result for the next LLM turn
-                let toolResultText = result.content
-                    ? result.content.filter((c) => c.type === "text").map((c) => c.text).join("\n")
-                    : JSON.stringify(result, null, 2);
+      // 5. Handle Text or Tool Use
+      for (const content of outputMessage.content || []) {
+        if (content.text) {
+          finalText.push(content.text);
+        } else if (content.toolUse) {
+          const toolName = content.toolUse.name;
+          const toolArgs = content.toolUse.input ?? {};
 
-                messages.push({
-                    role: "user",
-                    content: [{
-                        toolResult: {
-                            toolUseId: content.toolUse.toolUseId,
-                            content: [{ text: toolResultText }],
-                            status: result.isError ? "error" : "success",
-                        },
-                    }],
-                });
+          console.log(`[Tool Call: ${toolName}]`);
+          const result = await this.mcp.callTool({
+            name: toolName,
+            arguments: toolArgs,
+          });
 
-                // 6. Final LLM Turn (Sifting tool results into a natural answer)
-                const finalResponse = await this.bedrock.send(
-                    new ConverseCommand({
-                        modelId: this.modelId,
-                        system: [{ text: systemPrompt }], // Keep context consistent
-                        messages,
-                        toolConfig: { tools: toolsForBedrock },
-                    }),
-                );
+          // Format tool result for the next LLM turn
+          let toolResultText = result.content
+            ? result.content
+                .filter((c) => c.type === "text")
+                .map((c) => c.text)
+                .join("\n")
+            : JSON.stringify(result, null, 2);
 
-                const lastContent = finalResponse.output?.message?.content?.[0];
-                if (lastContent?.text) {
-                    finalText.push(lastContent.text);
-                    messages.push(finalResponse.output.message);
-                }
-            }
+          messages.push({
+            role: "user",
+            content: [
+              {
+                toolResult: {
+                  toolUseId: content.toolUse.toolUseId,
+                  content: [{ text: toolResultText }],
+                  status: result.isError ? "error" : "success",
+                },
+              },
+            ],
+          });
+
+          // 6. Final LLM Turn (Sifting tool results into a natural answer)
+          const finalResponse = await this.bedrock.send(
+            new ConverseCommand({
+              modelId: this.modelId,
+              system: [{ text: systemPrompt }], // Keep context consistent
+              messages,
+              toolConfig: { tools: toolsForBedrock },
+            }),
+          );
+
+          const lastContent = finalResponse.output?.message?.content?.[0];
+          if (lastContent?.text) {
+            finalText.push(lastContent.text);
+            messages.push(finalResponse.output.message);
+          }
         }
+      }
 
-        const assistantResponse = finalText.join("\n");
+      const assistantResponse = finalText.join("\n");
 
-        // 7. Persist conversation history
-        await updateManifoldContext([
-            ...history,
-            { role: "user", content: [{ text: query }] },
-            { role: "assistant", content: [{ text: assistantResponse }] },
-        ]);
+      // 7. Persist conversation history
+      await updateManifoldContext([
+        ...history,
+        { role: "user", content: [{ text: query }] },
+        { role: "assistant", content: [{ text: assistantResponse }] },
+      ]);
 
-        return assistantResponse || "Model provided no text response.";
-
+      return assistantResponse || "Model provided no text response.";
     } catch (e) {
-        console.error("Query Process Error:", e);
-        return `Error processing query: ${e.message}`;
+      console.error("Query Process Error:", e);
+      return `Error processing query: ${e.message}`;
     }
-}
+  }
 
   async chatLoop() {
     const rl = readline.createInterface({
@@ -345,10 +357,16 @@ class MCPClient {
   getSystemPrompt(version = "v0.1.0") {
     try {
       // Adjusted path to look for the 'prompts' folder at your project root
-      const promptPath = path.join(__dirname, "../../prompts", `manifold_${version}.md`);
+      const promptPath = path.join(
+        __dirname,
+        "../../prompts",
+        `manifold_${version}.md`,
+      );
       return fs.readFileSync(promptPath, "utf8");
     } catch (err) {
-      console.warn(`[WARN] Could not load system prompt version ${version}. Using default.`);
+      console.warn(
+        `[WARN] Could not load system prompt version ${version}. Using default.`,
+      );
       return "You are a helpful AI assistant for the Manifold platform.";
     }
   }
