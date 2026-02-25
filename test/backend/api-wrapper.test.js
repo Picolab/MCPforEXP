@@ -14,6 +14,8 @@ const {
   getRootECI,
 } = require("../../src/backend/utility/eci-utility.js");
 
+// Enviornment variables
+
 let manifoldEci = "";
 let rootECI = "";
 
@@ -136,7 +138,9 @@ describe("integration Test: picoHasRuleset", () => {
 /**
  * Helper to generate a short random string for unique tags
  */
-const generateRandomString = (length = 6) =>
+
+/**
+ * const generateRandomString = (length = 6) =>
   Math.random()
     .toString(36)
     .substring(2, 2 + length)
@@ -261,3 +265,6 @@ test("create thing, add owner info, update it, and view it", async () => {
     }
   }
 }, 60000); // 60 second timeout - createThing can take up to 10s, plus multiple update operations
+
+ * 
+ */

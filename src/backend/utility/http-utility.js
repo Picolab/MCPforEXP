@@ -30,6 +30,13 @@ async function getFetchRequest(requestEndpoint) {
   }
 }
 
+async function postFetchRequest(requestEndpoint, requestBody) {
+  const baseURL = await checkENVVariable(
+    process.env.PICO_ENGINE_BASE_URL,
+    "PICO_ENGINE_BASE_URL",
+  );
+}
+
 module.exports = {
   getFetchRequest,
 };

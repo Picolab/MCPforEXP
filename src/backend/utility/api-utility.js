@@ -17,7 +17,11 @@ async function installRuleset(eci, filePath) {
     const rid = filePath.split("/").at(-1).replace(".krl", "");
     if (await picoHasRuleset(eci, rid)) return;
 
-    const response = await fetch(
+    const requestEndpoint = `/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`;
+    const requestBody = {};
+
+    /**
+     * const response = await fetch(
       `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
       {
         method: "POST",
@@ -25,6 +29,7 @@ async function installRuleset(eci, filePath) {
         body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
       },
     );
+     */
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
