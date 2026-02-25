@@ -49,6 +49,15 @@ jest.mock("dotenv", () => ({
   config: jest.fn(),
 }));
 
+// Mock LLM context functions
+jest.mock("../../src/backend/llm/llm-context.js", () => ({
+  getManifoldContext: jest.fn().mockResolvedValue([]), // Return empty history by default
+  updateManifoldContext: jest.fn().mockResolvedValue(true),
+}));
+
+process.env.AWS_BEARER_TOKEN_BEDROCK = "test-token";
+process.env.AWS_REGION = "us-east-2";
+
 const { MCPClient } = require("../../src/mcp-client/index.js");
 
 describe("MCP Client", () => {
