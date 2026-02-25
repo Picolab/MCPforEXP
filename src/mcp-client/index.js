@@ -189,11 +189,6 @@ class MCPClient {
 
   async processQuery(query) {
     // 1. Fetch existing history from the Pico
-    // const fullHistory = await this.mcp.callTool({
-    //   name: "get_manifold_context", // You'll expose this via your MCP Server
-    //   arguments: {},
-    // });
-
     const fullHistory = await getManifoldContext();
     const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
 
@@ -296,6 +291,7 @@ class MCPClient {
               name: toolName,
               arguments: toolArgs,
             });
+
             // Extract text content from MCP tool result
             let toolResultText = "";
             if (result.content && Array.isArray(result.content)) {
@@ -306,6 +302,7 @@ class MCPClient {
             } else {
               toolResultText = JSON.stringify(result, null, 2);
             }
+
             const toolResult = {
               role: "user",
               content: [
@@ -345,10 +342,6 @@ class MCPClient {
         ]);
 
         return assistantResponse || "Model provided no text response.";
-
-        return finalText.length > 0
-          ? finalText.join("\n")
-          : "Model provided no text response.";
       } catch (e) {
         return `Error processing query: ${e.message}`;
       }

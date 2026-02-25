@@ -2,7 +2,6 @@ const {
   getRootECI,
   getECIByTag,
   getChildEciByName,
-  traverseHierarchy,
 } = require("../utility/eci-utility.js");
 const { getFetchRequest } = require("../utility/http-utility.js");
 
