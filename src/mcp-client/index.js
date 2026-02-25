@@ -12,6 +12,10 @@ const dotenv = require("dotenv");
 const path = require("path");
 // Ensure dotenv finds the .env at the project root
 dotenv.config({ path: path.join(__dirname, "../../.env") });
+const {
+  getManifoldContext,
+  updateManifoldContext,
+} = require("../backend/llm/llm-context.js");
 class MCPClient {
   mcp;
   bedrock;
@@ -185,12 +189,13 @@ class MCPClient {
 
   async processQuery(query) {
     // 1. Fetch existing history from the Pico
-    const fullHistory = await this.mcp.callTool({
-      name: "get_manifold_context", // You'll expose this via your MCP Server
-      arguments: {},
-    });
+    // const fullHistory = await this.mcp.callTool({
+    //   name: "get_manifold_context", // You'll expose this via your MCP Server
+    //   arguments: {},
+    // });
 
-    const history = fullHistory.slice(-10);
+    const fullHistory = await getManifoldContext();
+    const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
 
     // 2. Format history for Bedrock (messages must alternate user/assistant)
     let messages = [...history, { role: "user", content: [{ text: query }] }];
@@ -274,10 +279,12 @@ class MCPClient {
         });
 
         const response = await this.bedrock.send(command);
-        const finalText = [];
         const outputMessage = response.output?.message;
         if (!outputMessage) return "Error: No response from model.";
+
+        const finalText = [];
         messages.push(outputMessage);
+
         for (const content of outputMessage.content || []) {
           if (content.text) {
             finalText.push(content.text);
@@ -312,6 +319,7 @@ class MCPClient {
               ],
             };
             messages.push(toolResult);
+
             const finalResponse = await this.bedrock.send(
               new ConverseCommand({
                 modelId: this.modelId,
@@ -323,24 +331,20 @@ class MCPClient {
             const lastContent = finalResponse.output?.message?.content?.[0];
             if (lastContent?.text) {
               finalText.push(lastContent.text);
-            } else {
-              finalText.push(
-                "[Tool execution successful, but no follow-up text provided]",
-              );
+              messages.push(finalResponse.output.message);
             }
           }
         }
 
-        // At the end of processQuery, before returning finalText
-        await this.mcp.callTool({
-          name: "save_manifold_context",
-          arguments: {
-            messages: [
-              { role: "user", content: [{ text: query }] },
-              { role: "assistant", content: [{ text: finalText.join("\n") }] },
-            ],
-          },
-        });
+        const assistantResponse = finalText.join("\n");
+
+        await updateManifoldContext([
+          ...history,
+          { role: "user", content: [{ text: query }] },
+          { role: "assistant", content: [{ text: assistantResponse }] },
+        ]);
+
+        return assistantResponse || "Model provided no text response.";
 
         return finalText.length > 0
           ? finalText.join("\n")
