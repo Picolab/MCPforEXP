@@ -1,4 +1,4 @@
-const { getFetchRequest } = require("./http-utility");
+const { getFetchRequest, postFetchRequest } = require("./http-utility");
 
 /**
  * Fetches the root ECI of the UI pico from the engine's local context.
@@ -53,25 +53,30 @@ async function getInitializationECI(owner_eci) {
  */
 async function getChildEciByName(parentEci, childName) {
   try {
-    const url = `http://127.0.0.1:3000/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
-    const response = await fetch(url);
+    const requestEndpoint = `/c/${parentEci}/query/io.picolabs.pico-engine-ui/pico`;
+    const response = await getFetchRequest(requestEndpoint);
+
     if (!response.ok)
       throw new Error(`Failed to query parent: ${response.status}`);
 
     const data = await response.json();
+
     const childEcis = data.children || [];
 
     // We must query each child individually to find the one with the matching name
     for (const childEci of childEcis) {
       try {
-        const nameUrl = `http://127.0.0.1:3000/c/${childEci}/query/io.picolabs.pico-engine-ui/name`;
-        const nameResp = await fetch(nameUrl);
+        const nameRequestEndpoint = `/c/${childEci}/query/io.picolabs.pico-engine-ui/name`;
+        const nameResp = await getFetchRequest(nameRequestEndpoint);
 
-        if (nameResp.ok) {
-          const actualName = await nameResp.json();
-          if (actualName === childName) {
-            return childEci; // Match found!
-          }
+        if (!nameResp.ok)
+          throw new Error(`Failed to query child: ${nameResp.status}`);
+
+        const actualName = await nameResp.json();
+        console.log("ACTUAL NAME RESP: ", actualName);
+
+        if (actualName === childName) {
+          return childEci; // Match found!
         }
       } catch (err) {
         // Skip a specific child if it's currently unreachable/initializing
@@ -101,9 +106,11 @@ async function getChildEciByName(parentEci, childName) {
 async function getECIByTag(owner_eci, tag) {
   try {
     const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`;
-    const response = await getFetchRequest(requestEndpoint);
-
+    const response = await postFetchRequest(requestEndpoint, {});
     const data = await response.json();
+
+    console.log("GET ECI BY TAG RESPONSE: ", data);
+
     const channels = data.channels;
 
     for (let channel of channels) {
@@ -126,13 +133,8 @@ async function getECIByTag(owner_eci, tag) {
  */
 async function getManifoldECI(owner_eci) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.manifold_owner/getManifoldPicoEci`;
+    const response = await postFetchRequest(requestEndpoint, {}); // This request has an empty request body
 
     if (!response.ok) {
       throw new Error(`${response.status}`);

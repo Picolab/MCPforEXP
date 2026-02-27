@@ -8,25 +8,40 @@ const {
 const {
   installRuleset,
   picoHasRuleset,
+  sesetupRegistry,
+  setupRegistry,
 } = require("../../src/backend/utility/api-utility.js");
 const {
   getECIByTag,
   getRootECI,
+  traverseHierarchy,
+  getManifoldECI,
+  getChildEciByName,
 } = require("../../src/backend/utility/eci-utility.js");
+const {
+  getFetchRequest,
+} = require("../../src/backend/utility/http-utility.js");
 
 // Enviornment variables
 
-let manifoldEci = "";
+let manifold_eci = "";
 let rootECI = "";
+let owner_eci = "";
 
 beforeAll(async () => {
   console.log("Installing Manifold...");
   rootECI = await getRootECI();
   console.log("ROOT ECI: ", rootECI);
+
+  // TODO: Replace the URL here with a .env variable. Eventually this should be grabbed using a endpoint in the pico engine.
   await installRuleset(
     rootECI,
-    "/app/Manifold-api/io.picolabs.manifold_bootstrap.krl",
+    "https://raw.githubusercontent.com/Picolab/MCPforEXP/refs/heads/main/Manifold-api/io.picolabs.manifold_bootstrap.krl",
   );
+  owner_eci = await getChildEciByName(rootECI, "Owner");
+  console.log("OWNER ECI: ", owner_eci);
+  manifold_eci = await traverseHierarchy();
+  console.log("MANIFOLD ECI: ", manifold_eci);
 });
 
 describe("Integration Test: getRootECI", () => {
@@ -47,8 +62,40 @@ describe("Integration Test: getECIByTag", () => {
 });
 
 describe("integration Test: picoHasRuleset", () => {
+  test("picoHasRuleset is called and does not throw an error", async () => {
+    await expect(picoHasRuleset(rootECI, "bootstrap")).resolves.not.toThrow();
+  });
+
   test("successfully gets if a pico has a specific ruleset", async () => {
-    picoHasRuleset(rootECI, "bootstrap");
+    const result = await picoHasRuleset(
+      rootECI,
+      "io.picolabs.manifold_bootstrap",
+    );
+    expect(result).toEqual(true);
+  });
+});
+
+describe("integration test: installRuleset", () => {
+  test("successfully installs a ruleset", async () => {
+    //TODO: create a thing, and install safe and mine on the thing.
+    //installRuleset();
+  });
+});
+
+describe("integrationTest: traverseHierarchy", () => {
+  test("calls traverseHierarchy without error", async () => {
+    await expect(traverseHierarchy()).resolves.not.toThrow();
+  });
+
+  test("traverseHierachy retrieves the same manifold ECI as beforeAll", async () => {
+    const manECI = await traverseHierarchy();
+    expect(manECI).toEqual(manifold_eci);
+  });
+});
+
+describe("integrationTest: getManifoldECI", () => {
+  test("calls getmanfoldECI without error", async () => {
+    await expect(getManifoldECI(owner_eci)).resolves.not.toThrow();
   });
 });
 

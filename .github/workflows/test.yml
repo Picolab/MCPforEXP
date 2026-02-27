@@ -3,44 +3,36 @@ name: Run Tests
 # Trigger on PR or push to main
 on:
   push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - main
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️ Checkout the repo
+      # Checkout the repo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️ Set up Node.js
+      # Set up Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
 
-      # 3️ Install dependencies
+      # Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 4️ Run setup script
-      - name: Run setup script
-        run: |
-          chmod +x scripts/setup.sh
-          bash scripts/setup.sh
+      # Build Docker images
+      - name: Build Docker images
+        run: docker compose build --no-cache
 
-      # 5️ Run Jest tests
-      - name: Run Jest tests
-        run: npm test
+      # Run tests inside docker
+      - name: Run Docker tests
+        run: docker compose up --abort-on-container-exit --exit-code-from tests
 
-      # 6️ Run teardown script (always runs)
-      - name: Run teardown script
+      # Always clean up
+      - name: Docker cleanup
         if: always()
-        run: |
-          chmod +x scripts/teardown.sh
-          bash scripts/teardown.sh
+        run: docker compose down -v

@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 async function checkENVVariable(variable, variableName) {
   if (variable) {
     return variable;
@@ -35,8 +37,30 @@ async function postFetchRequest(requestEndpoint, requestBody) {
     process.env.PICO_ENGINE_BASE_URL,
     "PICO_ENGINE_BASE_URL",
   );
+
+  const requestURL = new URL(requestEndpoint, baseURL).href;
+
+  try {
+    const response = await fetch(requestURL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response;
+  } catch (err) {
+    console.error("Fetch Logic Failed: ", err.message);
+    throw err;
+  }
 }
 
 module.exports = {
   getFetchRequest,
+  postFetchRequest,
 };

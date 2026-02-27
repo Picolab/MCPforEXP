@@ -1,7 +1,7 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { getRootECI, getECIByTag } = require("./eci-utility");
-const { getFetchRequest } = require("./http-utility");
+const { getFetchRequest, postFetchRequest } = require("./http-utility");
 
 /**
  * Installs a KRL ruleset on a pico using its file URL.
@@ -18,23 +18,17 @@ async function installRuleset(eci, filePath) {
     if (await picoHasRuleset(eci, rid)) return;
 
     const requestEndpoint = `/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`;
-    const requestBody = {};
+    const requestBody = {
+      url: filePath,
+      config: {},
+    };
 
-    /**
-     * const response = await fetch(
-      `http://localhost:3000/c/${eci}/event/engine_ui/install/query/io.picolabs.pico-engine-ui/pico`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ` ${filePath}`, config: {} }),
-      },
-    );
-     */
-
+    const response = await postFetchRequest(requestEndpoint, requestBody);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
+    return data;
   } catch (error) {
     console.error("Fetch error:", error);
   }
@@ -135,13 +129,9 @@ async function manifold_isAChild(thingName) {
  * }
  * @throws {Error} If the bootstrap process fails to complete within 30 seconds.
  */
-async function setupRegistry() {
+async function setupRegistry(filePath) {
   console.log("Starting Manifold bootstrap process...");
   const rootEci = await getRootECI();
-  const filePath = path.resolve(
-    __dirname,
-    "../../../Manifold-api/io.picolabs.manifold_bootstrap.krl",
-  );
   const fileUrl = pathToFileURL(filePath).href;
 
   await installRuleset(rootEci, fileUrl);
@@ -159,9 +149,8 @@ async function setupRegistry() {
       }
 
       if (bootstrapEci) {
-        const resp = await fetch(
-          `http://127.0.0.1:3000/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`,
-        );
+        const requestEndpoint = `/c/${bootstrapEci}/query/io.picolabs.manifold_bootstrap/getBootstrapStatus`;
+        const resp = await getFetchRequest(requestEndpoint);
 
         if (resp.ok) {
           const status = await resp.json();
