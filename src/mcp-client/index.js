@@ -236,75 +236,82 @@ class MCPClient {
           };
         });
 
-      // 4. Initial LLM Call
-      const command = new ConverseCommand({
+      let loopCount = 0;
+      const maxLoops = 5;
+      let assistantResponse = "";
+
+      // 1. Initial Call
+      let command = new ConverseCommand({
         modelId: this.modelId,
-        system: [{ text: systemPrompt }], // Injected system prompt
+        system: [{ text: systemPrompt }],
         messages,
         toolConfig: { tools: toolsForBedrock },
       });
 
-      const response = await this.bedrock.send(command);
-      const outputMessage = response.output?.message;
-      if (!outputMessage) return "Error: No response from model.";
+      while (loopCount < maxLoops) {
+        const response = await this.bedrock.send(command);
+        const outputMessage = response.output?.message;
+        if (!outputMessage) break;
 
-      const finalText = [];
-      messages.push(outputMessage);
+        messages.push(outputMessage);
 
-      // 5. Handle Text or Tool Use
-      for (const content of outputMessage.content || []) {
-        if (content.text) {
-          finalText.push(content.text);
-        } else if (content.toolUse) {
-          const toolName = content.toolUse.name;
-          const toolArgs = content.toolUse.input ?? {};
+        const toolCalls = outputMessage.content.filter((c) => c.toolUse);
+        const textParts = outputMessage.content
+          .filter((c) => c.text)
+          .map((c) => c.text);
 
-          console.log(`[Tool Call: ${toolName}]`);
-          const result = await this.mcp.callTool({
-            name: toolName,
-            arguments: toolArgs,
-          });
+        if (textParts.length > 0) {
+          // Add a newline if we already have text to keep it readable
+          assistantResponse +=
+            (assistantResponse ? "\n" : "") + textParts.join("\n");
+        }
 
-          // Format tool result for the next LLM turn
-          let toolResultText = result.content
-            ? result.content
-                .filter((c) => c.type === "text")
-                .map((c) => c.text)
-                .join("\n")
-            : JSON.stringify(result, null, 2);
+        if (toolCalls.length === 0) break;
 
-          messages.push({
-            role: "user",
-            content: [
-              {
-                toolResult: {
-                  toolUseId: content.toolUse.toolUseId,
-                  content: [{ text: toolResultText }],
-                  status: result.isError ? "error" : "success",
-                },
+        const toolResults = [];
+        for (const content of toolCalls) {
+          const { name, input, toolUseId } = content.toolUse;
+          console.log(`[Executing Tool: ${name}]`);
+
+          try {
+            const result = await this.mcp.callTool({ name, arguments: input });
+            let text = result.content
+              ? result.content
+                  .filter((c) => c.type === "text")
+                  .map((c) => c.text)
+                  .join("\n")
+              : JSON.stringify(result);
+
+            toolResults.push({
+              toolResult: {
+                toolUseId,
+                content: [{ text }],
+                status: result.isError ? "error" : "success",
               },
-            ],
-          });
-
-          // 6. Final LLM Turn (Sifting tool results into a natural answer)
-          const finalResponse = await this.bedrock.send(
-            new ConverseCommand({
-              modelId: this.modelId,
-              system: [{ text: systemPrompt }], // Keep context consistent
-              messages,
-              toolConfig: { tools: toolsForBedrock },
-            }),
-          );
-
-          const lastContent = finalResponse.output?.message?.content?.[0];
-          if (lastContent?.text) {
-            finalText.push(lastContent.text);
-            messages.push(finalResponse.output.message);
+            });
+          } catch (toolErr) {
+            toolResults.push({
+              toolResult: {
+                toolUseId,
+                content: [{ text: `Error: ${toolErr.message}` }],
+                status: "error",
+              },
+            });
           }
         }
-      }
 
-      const assistantResponse = finalText.join("\n");
+        messages.push({ role: "user", content: toolResults });
+
+        // Re-prepare command for the next iteration
+        command = new ConverseCommand({
+          modelId: this.modelId,
+          system: [{ text: systemPrompt }],
+          messages,
+          toolConfig: { tools: toolsForBedrock },
+        });
+
+        loopCount++;
+      }
 
       // 7. Persist conversation history
       await updateManifoldContext([
