@@ -1,3 +1,4 @@
+const { withOAuth } = require("@modelcontextprotocol/sdk/client/middleware.js");
 const {
   setSquareTag,
   createThing,
@@ -28,6 +29,8 @@ let manifold_eci = "";
 let rootECI = "";
 let owner_eci = "";
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 beforeAll(async () => {
   console.log("Installing Manifold...");
   rootECI = await getRootECI();
@@ -38,11 +41,12 @@ beforeAll(async () => {
     rootECI,
     "https://raw.githubusercontent.com/Picolab/MCPforEXP/refs/heads/main/Manifold-api/io.picolabs.manifold_bootstrap.krl",
   );
+  await wait(5000); // It needs just a bit more time to get the pico set up and ready to go.
   owner_eci = await getChildEciByName(rootECI, "Owner");
   console.log("OWNER ECI: ", owner_eci);
   manifold_eci = await traverseHierarchy();
   console.log("MANIFOLD ECI: ", manifold_eci);
-});
+}, 20000);
 
 describe("Integration Test: getRootECI", () => {
   test("successfully calls rootECI without error", async () => {
@@ -96,6 +100,11 @@ describe("integrationTest: traverseHierarchy", () => {
 describe("integrationTest: getManifoldECI", () => {
   test("calls getmanfoldECI without error", async () => {
     await expect(getManifoldECI(owner_eci)).resolves.not.toThrow();
+  });
+
+  test("getManifoldECI doesn't return null", async () => {
+    const returnValue = await getManifoldECI(owner_eci);
+    expect(returnValue).not.toEqual(null);
   });
 });
 

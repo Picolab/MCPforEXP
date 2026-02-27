@@ -35,4 +35,4 @@ jobs:
       # Always clean up
       - name: Docker cleanup
         if: always()
-        run: docker compose down -v
+        run: docker compose down -v || true
