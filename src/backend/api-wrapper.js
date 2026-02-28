@@ -279,7 +279,7 @@ async function manifold_change_thing_name(thingName, changedName) {
  * @returns {Promise<Object>} The engine's event response containing the event ID.
  * @throws {Error} If ruleset installation or tag registration fails.
  */
-async function setSquareTag(thingName, tagId, domain = "sqtg") {
+async function setSquareTag(thingName, tagId, domain) {
   try {
     // Get eci of Thing pico
     const manifoldEci = await traverseHierarchy();
@@ -337,7 +337,7 @@ async function setSquareTag(thingName, tagId, domain = "sqtg") {
  *  shareEmail: bool
  * }
  */
-async function scanTag(tagId, domain = "sqtg") {
+async function scanTag(tagId, domain) {
   try {
     const rootECI = await getRootECI();
     console.log("Root ECI:", rootECI);
