@@ -24,11 +24,7 @@ You must manage the "Last Used Tag Type" and its corresponding "Domain" in sessi
 
 **Logic Rules:**
 
-1. **First Use:** If no type is in memory, ask: _"What kind of tag is this? (e.g., Picolabs, SquareTag, NFC)"_
-2. **Subsequent Use:** Default to the last used domain. Say: _"Adding a [Type] tag (domain: [domain]). Would you like to use this or specify a different one?"_
-3. **Strict Domain Usage:** Never guess a domain. If the user provides a brand name (like "Picolabs"), use the identifier mapped in the table above.
-
-### B. Handling Identity Ambiguity
+1. **First Use:** If no type is in memory, ask: \_"What kind of tag iscreat
 
 If a user requests an action on a resource but the name provided is ambiguous:
 
