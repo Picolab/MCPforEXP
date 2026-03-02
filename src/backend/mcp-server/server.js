@@ -96,11 +96,11 @@ async function main() {
 
   server.tool(
     "safeandmine_newtag",
-    "Assign a physical SquareTag to a named Pico.",
+    "Assign a physical tag to a named Pico.",
     {
       thingName: z.string().describe("The name of the Pico to tag"),
       tagID: z.string().describe("The alphanumeric tag ID"),
-      domain: z.string().default("sqtg"),
+      domain: z.string().describe("The domain of the tag (e.g. 'sqtg')"),
     },
     toolHandler(({ thingName, tagID, domain, id }) =>
       safeandmine_newtag(thingName, tagID, domain, id),
@@ -109,10 +109,10 @@ async function main() {
 
   server.tool(
     "scanTag",
-    "Scan a SquareTag by its ID and domain to see if it's registered to any Pico.",
+    "Scan a tag by its ID and domain to see if it's registered to any Pico.",
     {
       tagID: z.string().describe("The alphanumeric tag ID"),
-      domain: z.string().default("sqtg"),
+      domain: z.string().describe("The domain of the tag (e.g. 'sqtg')"),
       id: z.string().optional(),
     },
     toolHandler(({ tagID, domain, id }) => scanTag(tagID, domain, id)),

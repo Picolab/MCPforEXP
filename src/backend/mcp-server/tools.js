@@ -159,7 +159,7 @@ const manifold_change_thing_name = tool({
 
 const safeandmine_newtag = tool({
   name: "safeandmine_newtag",
-  description: "Assign a physical SquareTag to a named Pico.",
+  description: "Assign a physical tag to a named Pico.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
     thingName: { type: "string", description: "The name of the Pico to tag." },
@@ -167,7 +167,6 @@ const safeandmine_newtag = tool({
     domain: {
       type: "string",
       description: "Tag domain/type (e.g., sqtg).",
-      default: "sqtg",
     },
   },
   required: ["thingName", "tagID"],
