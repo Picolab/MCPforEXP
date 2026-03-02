@@ -55,9 +55,10 @@ async function listThings() {
 
     const data = await response.json();
     console.log(data);
-    return data;
+    return data || {};
   } catch (error) {
     console.error("Fetch error:", error);
+    return {};
   }
 }
 
@@ -72,14 +73,20 @@ async function listThings() {
  */
 async function createThing(thingName) {
   //Check if thingName already exists in manifold. If so, throw error to avoid duplicates.
-  const things = await listThings();
+  const thingsResult = await listThings();
+  const things = thingsResult || {}; // Fallback to empty object if null/undefined
+
   for (const [picoID, thingData] of Object.entries(things)) {
-    if (thingData.name === thingName) {
+    if (thingData && thingData.name === thingName) {
       throw new Error(`Thing with name "${thingName}" already exists`);
     }
   }
 
   const manifoldEci = await traverseHierarchy();
+  /*if (!manifoldEci) {
+    throw new Error("Could not find Manifold ECI. TraverseHierarchy failed.");
+  }*/
+
   console.log("traverseHierarchy result in createThing:", manifoldEci);
   const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
 

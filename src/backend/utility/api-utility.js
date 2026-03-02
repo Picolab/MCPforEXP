@@ -1,6 +1,12 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { getRootECI, getECIByTag } = require("./eci-utility");
+// FIX: Added traverseHierarchy and getPicoIDByName to the imports
+const { 
+  getRootECI, 
+  getECIByTag, 
+  traverseHierarchy, 
+  getPicoIDByName 
+} = require("./eci-utility");
 const { getFetchRequest } = require("./http-utility");
 
 /**

@@ -19,6 +19,7 @@ async function getRootECI() {
     return data.eci;
   } catch (error) {
     console.error("Fetch error:", error);
+    throw error;
   }
 }
 
@@ -114,6 +115,7 @@ async function getECIByTag(owner_eci, tag) {
     throw new Error(`Child ECI with tag "${tag}" not found!`);
   } catch (error) {
     console.error("Fetch error:", error);
+    throw error;
   }
 }
 
@@ -143,6 +145,7 @@ async function getManifoldECI(owner_eci) {
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
+    throw error;
   }
 }
 
@@ -196,6 +199,7 @@ async function getSkillsRegistryECI() {
     return skillsRegistryECI;
   } catch (error) {
     console.error("ECI error:", error);
+    throw error;
   }
 }
 

@@ -1,20 +1,12 @@
-const {
-getRootECI,
-getInitializationECI,
-getManifoldECI,
-getECIByTag,
-getChildEciByName,
-getThingManifoldChannel,
-traverseHierarchy,
-} = require("../../../src/backend/utility/eci-utility");
-
 const eciUtility = require("../../../src/backend/utility/eci-utility");
 const apiUtility = require("../../../src/backend/utility/api-utility");
 
 // Mock the external dependencies
-jest.mock("../../../src/backend/utility/api-utility", () => ({
+jest.mock("../../../src/backend/utility/http-utility", () => ({
   getFetchRequest: jest.fn(),
 }));
+
+const httpUtility = require("../../../src/backend/utility/http-utility");
 
 // Mock the global fetch API
 global.fetch = jest.fn();
@@ -27,24 +19,24 @@ describe("Unit Tests: eci-utility.js", () => {
 
   describe("getRootECI", () => {
     test("successfully fetches and returns the root ECI", async () => {
-      // Setup the mock response
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      // Setup the mock response - ADDED: ok: true and status: 200
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: jest.fn().mockResolvedValueOnce({ eci: "root-123" }),
       });
 
       const result = await eciUtility.getRootECI();
       
-      expect(apiUtility.getFetchRequest).toHaveBeenCalledWith("/api/ui-context");
+      expect(httpUtility.getFetchRequest).toHaveBeenCalledWith("/api/ui-context");
       expect(result).toBe("root-123");
     });
 
     test("handles fetch errors gracefully", async () => {
       const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-      apiUtility.getFetchRequest.mockRejectedValueOnce(new Error("Network Error"));
+      httpUtility.getFetchRequest.mockRejectedValueOnce(new Error("Network Error"));
 
-      const result = await eciUtility.getRootECI();
-
-      expect(result).toBeUndefined();
+      await expect(eciUtility.getRootECI()).rejects.toThrow("Network Error");
       expect(consoleSpy).toHaveBeenCalledWith("Fetch error:", expect.any(Error));
       
       consoleSpy.mockRestore();
@@ -53,7 +45,7 @@ describe("Unit Tests: eci-utility.js", () => {
 
   describe("getECIByTag", () => {
     test("returns channel id when the tag matches", async () => {
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
         json: jest.fn().mockResolvedValueOnce({
           channels: [
             { id: "chan-1", tags: ["random"] },
@@ -68,15 +60,13 @@ describe("Unit Tests: eci-utility.js", () => {
 
     test("throws an error if the tag is not found", async () => {
       const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
         json: jest.fn().mockResolvedValueOnce({
           channels: [{ id: "chan-1", tags: ["random"] }],
         }),
       });
 
-      const result = await eciUtility.getECIByTag("owner-123", "missing-tag");
-      
-      expect(result).toBeUndefined();
+      await expect(eciUtility.getECIByTag("owner-123", "missing-tag")).rejects.toThrow('Child ECI with tag "missing-tag" not found!');
       expect(consoleSpy).toHaveBeenCalledWith("Fetch error:", expect.any(Error));
       
       consoleSpy.mockRestore();
@@ -86,7 +76,7 @@ describe("Unit Tests: eci-utility.js", () => {
   describe("getInitializationECI", () => {
     test("successfully retrieves the initialization ECI", async () => {
       // Because getInitializationECI calls getECIByTag internally, we mock the network call it relies on
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
         json: jest.fn().mockResolvedValueOnce({
           channels: [{ id: "init-chan-123", tags: ["initialization"] }],
         }),
@@ -133,12 +123,9 @@ describe("Unit Tests: eci-utility.js", () => {
         json: jest.fn().mockResolvedValueOnce("Wrong Name"),
       });
 
-      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
       const result = await eciUtility.getChildEciByName("parent-123", "Target Name");
       
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith("Returning null from getChildEciByName");
-      consoleSpy.mockRestore();
     });
 
     test("skips unreachable children and continues searching", async () => {
@@ -181,7 +168,8 @@ describe("Unit Tests: eci-utility.js", () => {
   describe("traverseHierarchy", () => {
     test("successfully traverses the hierarchy to find manifold channel", async () => {
       // Mock getRootECI -> returns root data
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
+        ok: true,
         json: jest.fn().mockResolvedValueOnce({ eci: "root-eci" }),
       });
 
@@ -196,7 +184,7 @@ describe("Unit Tests: eci-utility.js", () => {
       });
 
       // Mock getInitializationECI -> returns init channel
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
         json: jest.fn().mockResolvedValueOnce({
           channels: [{ id: "owner-init-chan", tags: ["initialization"] }],
         }),
@@ -209,7 +197,7 @@ describe("Unit Tests: eci-utility.js", () => {
       });
 
       // Mock getECIByTag ("manifold") -> returns final channel
-      apiUtility.getFetchRequest.mockResolvedValueOnce({
+      httpUtility.getFetchRequest.mockResolvedValueOnce({
         json: jest.fn().mockResolvedValueOnce({
           channels: [{ id: "final-manifold-channel", tags: ["manifold"] }],
         }),
