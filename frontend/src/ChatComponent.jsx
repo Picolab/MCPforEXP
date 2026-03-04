@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 
+// Ensure this matches your local backend during testing
 const API_URL = "http://localhost:3001";
 const socket = io(API_URL);
 
@@ -14,8 +15,9 @@ const ChatComponent = () => {
   useEffect(() => {
     socket.on("assistant-status", (data) => setStatus(data.message));
     socket.on("assistant-tool", (data) =>
-      setStatus(`Executing: ${data.name}...`),
+      setStatus(`Running: ${data.name}...`),
     );
+
     return () => {
       socket.off("assistant-status");
       socket.off("assistant-tool");
@@ -34,7 +36,7 @@ const ChatComponent = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    setStatus("Thinking...");
+    setStatus("Claude is thinking...");
 
     try {
       const response = await fetch(`${API_URL}/api/chat`, {
@@ -54,7 +56,7 @@ const ChatComponent = () => {
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: "Connection error." },
+        { role: "assistant", text: "Failed to connect to backend." },
       ]);
     } finally {
       setIsLoading(false);
@@ -63,138 +65,103 @@ const ChatComponent = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.headerText}>Manifold Assistant</h2>
-        <div style={styles.onlineBadge}>● Online</div>
-      </div>
+    <div className="flex flex-col h-[90vh] max-w-2xl mx-auto my-8 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden font-sans">
+      {/* Header */}
+      <header className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+        <div>
+          <h1 className="text-lg font-bold text-gray-800">
+            Manifold Assistant
+          </h1>
+          <p className="text-xs text-gray-500">Pico-Engine AI Agent</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span className="text-sm font-medium text-green-600">Online</span>
+        </div>
+      </header>
 
-      <div style={styles.chatWindow}>
+      {/* Chat Window */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
         {messages.length === 0 && (
-          <div style={styles.emptyState}>
-            Ask me to create, list, or tag your things!
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+            <p className="text-sm italic text-center px-12">
+              Welcome! You can ask me to create things, manage tags, or check
+              your Manifold state.
+            </p>
           </div>
         )}
 
         {messages.map((msg, i) => (
           <div
             key={i}
-            style={{
-              ...styles.messageRow,
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              style={{
-                ...styles.bubble,
-                backgroundColor: msg.role === "user" ? "#007AFF" : "#E9E9EB",
-                color: msg.role === "user" ? "white" : "black",
-                borderRadius:
-                  msg.role === "user"
-                    ? "18px 18px 2px 18px"
-                    : "18px 18px 18px 2px",
-              }}
+              className={`max-w-[85%] px-4 py-3 shadow-sm ${
+                msg.role === "user"
+                  ? "bg-blue-600 text-white rounded-2xl rounded-tr-none"
+                  : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none"
+              }`}
             >
-              {msg.text}
+              {/* whitespace-pre-wrap is the key to preserving line breaks from the LLM */}
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {msg.text}
+              </p>
             </div>
           </div>
         ))}
 
+        {/* Status / Thinking Indicator */}
         {status && (
-          <div style={styles.statusRow}>
-            <div style={styles.typingIndicator}>{status}</div>
+          <div className="flex justify-start items-center gap-3">
+            <div className="bg-white border border-gray-100 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+              <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+              </div>
+              <span className="text-xs font-medium text-gray-500 italic">
+                {status}
+              </span>
+            </div>
           </div>
         )}
         <div ref={scrollRef} />
       </div>
 
-      <form onSubmit={sendMessage} style={styles.inputArea}>
+      {/* Input Area */}
+      <form
+        onSubmit={sendMessage}
+        className="p-4 bg-white border-t border-gray-100 flex items-center gap-3"
+      >
         <input
-          style={styles.input}
+          className="flex-1 bg-gray-100 text-gray-800 text-sm rounded-full px-5 py-3 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
+          placeholder="Message Manifold..."
           disabled={isLoading}
         />
-        <button type="submit" disabled={isLoading} style={styles.sendButton}>
-          {isLoading ? "..." : "Send"}
+        <button
+          type="submit"
+          disabled={isLoading || !input.trim()}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-md active:scale-95"
+        >
+          {isLoading ? (
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-5 h-5"
+            >
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+            </svg>
+          )}
         </button>
       </form>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    height: "90vh",
-    maxWidth: "600px",
-    margin: "20px auto",
-    border: "1px solid #ddd",
-    borderRadius: "12px",
-    overflow: "hidden",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-    backgroundColor: "white",
-  },
-  header: {
-    padding: "15px 20px",
-    backgroundColor: "#f8f9fa",
-    borderBottom: "1px solid #eee",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerText: { margin: 0, fontSize: "18px", color: "#333" },
-  onlineBadge: { fontSize: "12px", color: "#28a745", fontWeight: "bold" },
-  chatWindow: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "20px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    backgroundColor: "#fff",
-  },
-  messageRow: { display: "flex", width: "100%" },
-  bubble: {
-    maxWidth: "75%",
-    padding: "10px 16px",
-    fontSize: "15px",
-    lineHeight: "1.4",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-  },
-  statusRow: { alignSelf: "flex-start", margin: "5px 0" },
-  typingIndicator: { fontSize: "12px", color: "#888", fontStyle: "italic" },
-  emptyState: {
-    textAlign: "center",
-    color: "#aaa",
-    marginTop: "50px",
-    fontSize: "14px",
-  },
-  inputArea: {
-    display: "flex",
-    padding: "15px",
-    borderTop: "1px solid #eee",
-    gap: "10px",
-    backgroundColor: "#f8f9fa",
-  },
-  input: {
-    flex: 1,
-    padding: "10px 15px",
-    borderRadius: "20px",
-    border: "1px solid #ccc",
-    outline: "none",
-  },
-  sendButton: {
-    backgroundColor: "#007AFF",
-    color: "white",
-    border: "none",
-    padding: "8px 20px",
-    borderRadius: "20px",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
 };
 
 export default ChatComponent;
