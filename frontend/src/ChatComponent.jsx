@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 
-// Ensure this matches your local backend during testing
 const API_URL = "http://localhost:3001";
 const socket = io(API_URL);
 
@@ -17,7 +16,6 @@ const ChatComponent = () => {
     socket.on("assistant-tool", (data) =>
       setStatus(`Running: ${data.name}...`),
     );
-
     return () => {
       socket.off("assistant-status");
       socket.off("assistant-tool");
@@ -68,7 +66,7 @@ const ChatComponent = () => {
     <div className="flex flex-col h-[90vh] max-w-2xl mx-auto my-8 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden font-sans">
       {/* Header */}
       <header className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-        <div>
+        <div className="text-left">
           <h1 className="text-lg font-bold text-gray-800">
             Manifold Assistant
           </h1>
@@ -81,12 +79,12 @@ const ChatComponent = () => {
       </header>
 
       {/* Chat Window */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <p className="text-sm italic text-center px-12">
-              Welcome! You can ask me to create things, manage tags, or check
-              your Manifold state.
+              Ready for your Manifold queries. Try asking "what things do I
+              have?"
             </p>
           </div>
         )}
@@ -94,26 +92,25 @@ const ChatComponent = () => {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[85%] px-4 py-3 shadow-sm ${
+              className={`max-w-[85%] px-4 py-2.5 shadow-sm text-left ${
                 msg.role === "user"
                   ? "bg-blue-600 text-white rounded-2xl rounded-tr-none"
                   : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none"
               }`}
             >
-              {/* whitespace-pre-wrap is the key to preserving line breaks from the LLM */}
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
                 {msg.text}
               </p>
             </div>
           </div>
         ))}
 
-        {/* Status / Thinking Indicator */}
+        {/* Bouncing Dots Status */}
         {status && (
-          <div className="flex justify-start items-center gap-3">
+          <div className="flex justify-start items-center">
             <div className="bg-white border border-gray-100 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
               <div className="flex gap-1">
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
