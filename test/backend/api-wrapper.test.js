@@ -1,3 +1,4 @@
+const { withOAuth } = require("@modelcontextprotocol/sdk/client/middleware.js");
 process.env.PICO_ENGINE_BASE_URL = "http://127.0.0.1:3000";
 
 const {
@@ -10,24 +11,44 @@ const {
 const {
   installRuleset,
   picoHasRuleset,
+  sesetupRegistry,
+  setupRegistry,
 } = require("../../src/backend/utility/api-utility.js");
 const {
   getECIByTag,
   getRootECI,
+  traverseHierarchy,
+  getManifoldECI,
+  getChildEciByName,
 } = require("../../src/backend/utility/eci-utility.js");
+const {
+  getFetchRequest,
+} = require("../../src/backend/utility/http-utility.js");
 
-let manifoldEci = "";
+// Enviornment variables
+
+let manifold_eci = "";
 let rootECI = "";
+let owner_eci = "";
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 beforeAll(async () => {
   console.log("Installing Manifold...");
   rootECI = await getRootECI();
   console.log("ROOT ECI: ", rootECI);
+
+  // TODO: Replace the URL here with a .env variable. Eventually this should be grabbed using a endpoint in the pico engine.
   await installRuleset(
     rootECI,
-    "/app/Manifold-api/io.picolabs.manifold_bootstrap.krl",
+    "https://raw.githubusercontent.com/Picolab/MCPforEXP/refs/heads/main/Manifold-api/io.picolabs.manifold_bootstrap.krl",
   );
-});
+  await wait(5000); // It needs just a bit more time to get the pico set up and ready to go.
+  owner_eci = await getChildEciByName(rootECI, "Owner");
+  console.log("OWNER ECI: ", owner_eci);
+  manifold_eci = await traverseHierarchy();
+  console.log("MANIFOLD ECI: ", manifold_eci);
+}, 20000);
 
 describe("Integration Test: getRootECI", () => {
   test("successfully calls rootECI without error", async () => {
@@ -47,8 +68,45 @@ describe("Integration Test: getECIByTag", () => {
 });
 
 describe("integration Test: picoHasRuleset", () => {
+  test("picoHasRuleset is called and does not throw an error", async () => {
+    await expect(picoHasRuleset(rootECI, "bootstrap")).resolves.not.toThrow();
+  });
+
   test("successfully gets if a pico has a specific ruleset", async () => {
-    picoHasRuleset(rootECI, "bootstrap");
+    const result = await picoHasRuleset(
+      rootECI,
+      "io.picolabs.manifold_bootstrap",
+    );
+    expect(result).toEqual(true);
+  });
+});
+
+describe("integration test: installRuleset", () => {
+  test("successfully installs a ruleset", async () => {
+    //TODO: create a thing, and install safe and mine on the thing.
+    //installRuleset();
+  });
+});
+
+describe("integrationTest: traverseHierarchy", () => {
+  test("calls traverseHierarchy without error", async () => {
+    await expect(traverseHierarchy()).resolves.not.toThrow();
+  });
+
+  test("traverseHierachy retrieves the same manifold ECI as beforeAll", async () => {
+    const manECI = await traverseHierarchy();
+    expect(manECI).toEqual(manifold_eci);
+  });
+});
+
+describe("integrationTest: getManifoldECI", () => {
+  test("calls getmanfoldECI without error", async () => {
+    await expect(getManifoldECI(owner_eci)).resolves.not.toThrow();
+  });
+
+  test("getManifoldECI doesn't return null", async () => {
+    const returnValue = await getManifoldECI(owner_eci);
+    expect(returnValue).not.toEqual(null);
   });
 });
 
@@ -138,7 +196,9 @@ describe("integration Test: picoHasRuleset", () => {
 /**
  * Helper to generate a short random string for unique tags
  */
-const generateRandomString = (length = 6) =>
+
+/**
+ * const generateRandomString = (length = 6) =>
   Math.random()
     .toString(36)
     .substring(2, 2 + length)
@@ -263,3 +323,6 @@ test("create thing, add owner info, update it, and view it", async () => {
     }
   }
 }, 60000); // 60 second timeout - createThing can take up to 10s, plus multiple update operations
+
+ * 
+ */
