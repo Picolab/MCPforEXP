@@ -19,6 +19,7 @@ async function getRootECI() {
     return data.eci;
   } catch (error) {
     console.error("Fetch error:", error);
+    throw error;
   }
 }
 
@@ -117,6 +118,7 @@ async function getECIByTag(owner_eci, tag) {
     throw new Error(`Child ECI with tag "${tag}" not found!`);
   } catch (error) {
     console.error("Fetch error:", error);
+    throw error;
   }
 }
 
@@ -142,6 +144,7 @@ async function getManifoldECI(owner_eci) {
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
+    throw error;
   }
 }
 
@@ -180,6 +183,25 @@ async function traverseHierarchy() {
   }
 }
 
+async function getSkillsRegistryECI() {
+  try {
+    const rootECI = await getRootECI();
+    const skillsRegistryUI = await getChildEciByName(
+      rootECI,
+      "Skills Registry",
+    );
+    const skillsRegistryECI = await getECIByTag(
+      skillsRegistryUI,
+      "skills_registry",
+    );
+
+    return skillsRegistryECI;
+  } catch (error) {
+    console.error("ECI error:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getRootECI,
   getInitializationECI,
@@ -188,4 +210,5 @@ module.exports = {
   getChildEciByName,
   getThingManifoldChannel,
   traverseHierarchy,
+  getSkillsRegistryECI,
 };

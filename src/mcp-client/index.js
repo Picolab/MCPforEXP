@@ -9,9 +9,15 @@ const {
 const readline = require("readline");
 const { promisify } = require("util");
 const dotenv = require("dotenv");
+const fs = require("fs");
 const path = require("path");
 // Ensure dotenv finds the .env at the project root
 dotenv.config({ path: path.join(__dirname, "../../.env") });
+const {
+  getManifoldContext,
+  updateManifoldContext,
+} = require("../backend/llm/llm-context.js");
+
 class MCPClient {
   mcp;
   bedrock;
@@ -33,6 +39,7 @@ class MCPClient {
     });
     this.mcp = new Client({ name: "mcp-client-cli", version: "1.0.0" });
   }
+
   async refreshTools() {
     console.log("Refreshing available tools...");
     const toolsResult = await this.mcp.listTools();
@@ -162,6 +169,7 @@ class MCPClient {
       `Loaded ${this.tools.length} tools: ${this.tools.map((t) => t.toolSpec.name).join(", ")}`,
     );
   }
+
   async connectToServer(serverScriptPath) {
     try {
       const command = serverScriptPath.endsWith(".py")
@@ -180,32 +188,27 @@ class MCPClient {
       throw e;
     }
   }
+
   async processQuery(query) {
-    let messages = [{ role: "user", content: [{ text: query }] }];
+    // 1. Fetch history and the system prompt
+    const fullHistory = await getManifoldContext();
+    const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
+    const systemPrompt = this.getSystemPrompt("v0.1.0"); // Matches your file versioning
+
+    // 2. Format history for Bedrock
+    let messages = [...history, { role: "user", content: [{ text: query }] }];
+    if (messages.length > 0 && messages[0].role !== "user") {
+      messages.shift();
+    }
+
     try {
-      // Validate tools before sending to Bedrock
+      // 3. Prepare and Validate Tools FIRST
       if (!this.tools || this.tools.length === 0) {
         return "Error: No tools available. Try /refresh to reload tools.";
       }
 
-      // Validate each tool's inputSchema before sending
-      const invalidTools = this.tools.filter((tool) => {
-        const schema = tool.toolSpec?.inputSchema;
-        return (
-          !schema ||
-          typeof schema !== "object" ||
-          !schema.type ||
-          !schema.properties
-        );
-      });
-
-      if (invalidTools.length > 0) {
-        console.error(
-          `[ERROR] Found ${invalidTools.length} tools with invalid schemas:`,
-          invalidTools.map((t) => t.toolSpec?.name).join(", "),
-        );
-        // Filter out invalid tools
-        this.tools = this.tools.filter((tool) => {
+      const toolsForBedrock = this.tools
+        .filter((tool) => {
           const schema = tool.toolSpec?.inputSchema;
           return (
             schema &&
@@ -213,116 +216,117 @@ class MCPClient {
             schema.type &&
             schema.properties
           );
+        })
+        .map((tool) => {
+          const schema = tool.toolSpec.inputSchema;
+          return {
+            toolSpec: {
+              name: tool.toolSpec.name,
+              description: tool.toolSpec.description || "Manifold Tool",
+              inputSchema: {
+                json: {
+                  type: "object",
+                  properties: { ...schema.properties },
+                  required: Array.isArray(schema.required)
+                    ? [...schema.required]
+                    : [],
+                },
+              },
+            },
+          };
         });
-        if (this.tools.length === 0) {
-          return "Error: All tools have invalid schemas. Please check the MCP server configuration.";
-        }
-      }
 
-      // Create a deep copy of tools to ensure no reference issues
-      // Also ensure each schema is a plain object with no prototype chain issues
-      const toolsForBedrock = this.tools.map((tool) => {
-        const schema = tool.toolSpec.inputSchema;
+      let loopCount = 0;
+      const maxLoops = 5;
+      let assistantResponse = "";
 
-        // Bedrock REQUIRES these three specific fields to be present
-        const cleanInputSchema = {
-          type: "object",
-          properties:
-            schema &&
-            schema.properties &&
-            Object.keys(schema.properties).length > 0
-              ? { ...schema.properties }
-              : {},
-          // Bedrock often fails if 'required' is missing, even if empty
-          required:
-            schema && Array.isArray(schema.required)
-              ? [...schema.required]
-              : [],
-        };
-
-        return {
-          toolSpec: {
-            name: tool.toolSpec.name,
-            description: tool.toolSpec.description || "Manifold Tool",
-            inputSchema: { json: cleanInputSchema }, // MUST be wrapped in 'json' for the Converse API
-          },
-        };
+      // 1. Initial Call
+      let command = new ConverseCommand({
+        modelId: this.modelId,
+        system: [{ text: systemPrompt }],
+        messages,
+        toolConfig: { tools: toolsForBedrock },
       });
 
-      try {
-        const command = new ConverseCommand({
+      while (loopCount < maxLoops) {
+        const response = await this.bedrock.send(command);
+        const outputMessage = response.output?.message;
+        if (!outputMessage) break;
+
+        messages.push(outputMessage);
+
+        const toolCalls = outputMessage.content.filter((c) => c.toolUse);
+        const textParts = outputMessage.content
+          .filter((c) => c.text)
+          .map((c) => c.text);
+
+        if (textParts.length > 0) {
+          // Add a newline if we already have text to keep it readable
+          assistantResponse +=
+            (assistantResponse ? "\n" : "") + textParts.join("\n");
+        }
+
+        if (toolCalls.length === 0) break;
+
+        const toolResults = [];
+        for (const content of toolCalls) {
+          const { name, input, toolUseId } = content.toolUse;
+          console.log(`[Executing Tool: ${name}]`);
+
+          try {
+            const result = await this.mcp.callTool({ name, arguments: input });
+            let text = result.content
+              ? result.content
+                  .filter((c) => c.type === "text")
+                  .map((c) => c.text)
+                  .join("\n")
+              : JSON.stringify(result);
+
+            toolResults.push({
+              toolResult: {
+                toolUseId,
+                content: [{ text }],
+                status: result.isError ? "error" : "success",
+              },
+            });
+          } catch (toolErr) {
+            toolResults.push({
+              toolResult: {
+                toolUseId,
+                content: [{ text: `Error: ${toolErr.message}` }],
+                status: "error",
+              },
+            });
+          }
+        }
+
+        messages.push({ role: "user", content: toolResults });
+
+        // Re-prepare command for the next iteration
+        command = new ConverseCommand({
           modelId: this.modelId,
+          system: [{ text: systemPrompt }],
           messages,
           toolConfig: { tools: toolsForBedrock },
         });
 
-        const response = await this.bedrock.send(command);
-        const finalText = [];
-        const outputMessage = response.output?.message;
-        if (!outputMessage) return "Error: No response from model.";
-        messages.push(outputMessage);
-        for (const content of outputMessage.content || []) {
-          if (content.text) {
-            finalText.push(content.text);
-          } else if (content.toolUse) {
-            const toolName = content.toolUse.name;
-            const toolArgs = content.toolUse.input ?? {};
-            console.log(`[Tool Call: ${toolName}]`);
-            const result = await this.mcp.callTool({
-              name: toolName,
-              arguments: toolArgs,
-            });
-            // Extract text content from MCP tool result
-            let toolResultText = "";
-            if (result.content && Array.isArray(result.content)) {
-              const textParts = result.content
-                .filter((c) => c.type === "text")
-                .map((c) => c.text);
-              toolResultText = textParts.join("\n");
-            } else {
-              toolResultText = JSON.stringify(result, null, 2);
-            }
-            const toolResult = {
-              role: "user",
-              content: [
-                {
-                  toolResult: {
-                    toolUseId: content.toolUse.toolUseId,
-                    content: [{ text: toolResultText }],
-                    status: result.isError ? "error" : "success",
-                  },
-                },
-              ],
-            };
-            messages.push(toolResult);
-            const finalResponse = await this.bedrock.send(
-              new ConverseCommand({
-                modelId: this.modelId,
-                messages,
-                toolConfig: { tools: toolsForBedrock },
-              }),
-            );
-            // Safely extract text from the final response
-            const lastContent = finalResponse.output?.message?.content?.[0];
-            if (lastContent?.text) {
-              finalText.push(lastContent.text);
-            } else {
-              finalText.push(
-                "[Tool execution successful, but no follow-up text provided]",
-              );
-            }
-          }
-        }
-        return finalText.length > 0
-          ? finalText.join("\n")
-          : "Model provided no text response.";
-      } catch (e) {
-        return `Error processing query: ${e.message}`;
+        loopCount++;
       }
+
+      // 7. Persist conversation history
+      await updateManifoldContext([
+        ...history,
+        { role: "user", content: [{ text: query }] },
+        { role: "assistant", content: [{ text: assistantResponse }] },
+      ]);
+
+      return assistantResponse || "Model provided no text response.";
     } catch (e) {
+      console.error("Query Process Error:", e);
       return `Error processing query: ${e.message}`;
     }
   }
+
   async chatLoop() {
     const rl = readline.createInterface({
       input: process.stdin,
@@ -356,7 +360,28 @@ class MCPClient {
   async cleanup() {
     await this.mcp.close();
   }
+
+  getSystemPrompt(version = "v0.1.0") {
+    try {
+      // Adjusted path to look for the 'prompts' folder at your project root
+      const promptPath = path.join(
+        __dirname,
+        "../../prompts",
+        `manifold_${version}.md`,
+      );
+      return fs.readFileSync(promptPath, "utf8");
+    } catch (err) {
+      console.warn(
+        `[WARN] Could not load system prompt version ${version}. Using default.`,
+      );
+      return "You are a helpful AI assistant for the Manifold platform.";
+    }
+  }
 }
+
+// Export for testing
+module.exports = { MCPClient };
+
 async function main() {
   const serverPath = process.argv[2] || "src/backend/mcp-server/server.js";
   if (process.argv.length < 3) {
@@ -374,4 +399,5 @@ async function main() {
     await client.cleanup();
   }
 }
+
 main();

@@ -1,6 +1,6 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { getRootECI, getECIByTag } = require("./eci-utility");
+const { getRootECI, getECIByTag, traverseHierarchy, getPicoIDByName } = require("./eci-utility");
 const { getFetchRequest, postFetchRequest } = require("./http-utility");
 
 /**

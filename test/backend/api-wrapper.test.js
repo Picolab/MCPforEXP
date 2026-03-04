@@ -1,4 +1,6 @@
 const { withOAuth } = require("@modelcontextprotocol/sdk/client/middleware.js");
+process.env.PICO_ENGINE_BASE_URL = "http://127.0.0.1:3000";
+
 const {
   setSquareTag,
   createThing,
