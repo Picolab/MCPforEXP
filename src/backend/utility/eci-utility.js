@@ -72,7 +72,6 @@ async function getChildEciByName(parentEci, childName) {
           throw new Error(`Failed to query child: ${nameResp.status}`);
 
         const actualName = await nameResp.json();
-        console.log("ACTUAL NAME RESP: ", actualName);
 
         if (actualName === childName) {
           return childEci; // Match found!
