@@ -7,6 +7,8 @@
     "setup": "cd scripts && bash ./setup.sh",
     "teardown": "cd scripts && bash ./teardown.sh",
     "test": "jest",
+    "dev": "cd src/frontend && npm run dev",
+    "proxy": "node src/mcp-client/api-proxy.js",
     "mcp:server": "node src/backend/mcp-server/server.js",
     "test:mcp": "node scripts/test-mcp-manual.js",
     "client": "node src/mcp-client/index.js",
@@ -33,6 +35,10 @@
     "@anthropic-ai/sdk": "^0.77.0",
     "@aws-sdk/client-bedrock-runtime": "^3.994.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "zod": "^3.25.76"
   }
 }
