@@ -31,8 +31,11 @@ async function waitForECI(retries = 10, delayMs = 500) {
 }
 
 async function main() {
+  console.log(
+    `Attempting to connect to Pico Engine at: ${process.env.PICO_ENGINE_BASE_URL}`,
+  );
   try {
-    const eci = await waitForECI();
+    const eci = await waitForECI(30, 2000);
     console.log(`Using Pico ECI: ${eci}`);
 
     // This now blocks until the KRL bootstrap is 100% finished
