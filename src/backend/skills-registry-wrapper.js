@@ -1,4 +1,5 @@
 const { getSkillsRegistryECI } = require("./utility/eci-utility.js");
+const { postFetchRequest } = require("./utility/http-utility.js");
 
 /**
  * Gets all available skills, or searches for a single skill by name if given the name as an argument
