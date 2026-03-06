@@ -165,19 +165,16 @@ describe("Unit Tests: api-utility.js", () => {
       eciUtility.getPicoIDByName.mockResolvedValueOnce("pico-id-456");
       eciUtility.traverseHierarchy.mockResolvedValueOnce("manifold-eci-789");
 
-      global.fetch.mockResolvedValueOnce({
+      httpUtility.postFetchRequest.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValueOnce(true),
       });
 
       const result = await apiUtility.manifold_isAChild("MyThing");
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:3000/c/manifold-eci-789/query/io.picolabs.manifold_pico/isAChild",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ picoID: "pico-id-456" }),
-        }),
+      expect(httpUtility.postFetchRequest).toHaveBeenCalledWith(
+        "/c/manifold-eci-789/query/io.picolabs.manifold_pico/isAChild",
+        { picoID: "pico-id-456" },
       );
       expect(result).toBe(true);
     });

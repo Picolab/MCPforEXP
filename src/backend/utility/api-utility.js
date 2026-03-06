@@ -1,6 +1,11 @@
 const path = require("path");
 const { pathToFileURL } = require("url");
-const { getRootECI, getECIByTag, traverseHierarchy, getPicoIDByName } = require("./eci-utility");
+const {
+  getRootECI,
+  getECIByTag,
+  traverseHierarchy,
+  getPicoIDByName,
+} = require("./eci-utility");
 const { getFetchRequest, postFetchRequest } = require("./http-utility");
 
 /**
@@ -97,14 +102,8 @@ async function picoHasRuleset(picoEci, rid) {
 async function manifold_isAChild(thingName) {
   const picoID = await getPicoIDByName(thingName);
   const eci = await traverseHierarchy();
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/query/io.picolabs.manifold_pico/isAChild`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ picoID }),
-    },
-  );
+  const requestEndpoint = `/c/${eci}/query/io.picolabs.manifold_pico/isAChild`;
+  const response = await postFetchRequest(requestEndpoint, { picoID });
 
   if (!response.ok) {
     throw new Error(

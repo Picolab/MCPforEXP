@@ -7,6 +7,7 @@ const {
   traverseHierarchy,
 } = require("./utility/eci-utility.js");
 const { picoHasRuleset, installRuleset } = require("./utility/api-utility.js");
+const { postFetchRequest } = require("./utility/http-utility.js");
 
 async function main() {
   console.log(await traverseHierarchy());
@@ -41,13 +42,8 @@ async function listThings() {
     //Get the manifold channel ECI by traversing the pico hierarchy
     const manifold_eci = await traverseHierarchy();
 
-    const response = await fetch(
-      `http://localhost:3000/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const requestEndpoint = `/c/${manifold_eci}/query/io.picolabs.manifold_pico/getThings`;
+    const response = await postFetchRequest(requestEndpoint, {});
 
     if (!response.ok) {
       throw new Error(`${response.status}`);
@@ -88,13 +84,11 @@ async function createThing(thingName) {
   }*/
 
   console.log("traverseHierarchy result in createThing:", manifoldEci);
-  const url = `http://localhost:3000/c/${manifoldEci}/event-wait/manifold/create_thing`;
+  const requestEndpoint = `/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: thingName }),
+    const response = await postFetchRequest(requestEndpoint, {
+      name: thingName,
     });
 
     if (!response.ok) {
@@ -152,15 +146,13 @@ async function addNote(thingName, title, content) {
       await new Promise((r) => setTimeout(r, 10000));
     }
 
-    // Send API request
-    const response = await fetch(
-      `http://localhost:3000/c/${thingEci}/event-wait/journal/new_entry`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title, content: content }),
-      },
-    );
+    const requestEndpoint = `/c/${thingEci}/event-wait/journal/new_entry`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {
+      title: title,
+      content: content,
+    });
     const data = await response.json();
     return data;
   } catch (err) {
@@ -191,14 +183,9 @@ async function getNote(thingName, title) {
       throw new Error("Error in getNote: journal ruleset not installed.");
     }
 
-    const response = await fetch(
-      `http://localhost:3000/c/${thingEci}/query/io.picolabs.journal/getEntry`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title }),
-      },
-    );
+    const requestEndpoint = `/c/${thingEci}/query/io.picolabs.journal/getEntry`;
+
+    const response = await postFetchRequest(requestEndpoint, { title: title });
 
     if (!response.ok) {
       throw new Error(
@@ -227,14 +214,8 @@ async function deleteThing(thingName) {
   const picoID = await getPicoIDByName(thingName);
 
   const eci = await traverseHierarchy();
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/event/manifold/remove_thing`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ picoID }),
-    },
-  );
+  const requestEndpoint = `/c/${eci}/event/manifold/remove_thing`;
+  const response = await postFetchRequest(requestEndpoint, { picoID });
 
   if (!response.ok) {
     throw new Error(
@@ -257,14 +238,9 @@ async function deleteThing(thingName) {
 async function manifold_change_thing_name(thingName, changedName) {
   const picoID = await getPicoIDByName(thingName);
   const eci = await traverseHierarchy();
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/event/manifold/change_thing_name`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ picoID, changedName }),
-    },
-  );
+
+  const requestEndpoint = `/c/${eci}/event/manifold/change_thing_name`;
+  const response = postFetchRequest({ picoID, changedName });
 
   if (!response.ok) {
     throw new Error(
@@ -307,14 +283,11 @@ async function setSquareTag(thingName, tagId, domain) {
 
     const thingManifoldChannel = await getECIByTag(thingEci, "manifold");
 
-    const response = await fetch(
-      `http://127.0.0.1:3000/c/${thingManifoldChannel}/event/safeandmine/new_tag`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagID: tagId, domain: domain }),
-      },
-    );
+    const requestEndpoint = `/c/${thingManifoldChannel}/event/safeandmine/new_tag`;
+    const response = await postFetchRequest(requestEndpoint, {
+      tagID: tagId,
+      domain: domain,
+    });
 
     const data = await response.json();
     console.log("Done! Event id: ", data);
@@ -353,14 +326,11 @@ async function scanTag(tagId, domain) {
     const registrationECI = await getECIByTag(tagRegistryECI, "registration");
     console.log("Tag Registration Channel ECI:", registrationECI);
 
-    const scanTagResponse = await fetch(
-      `http://localhost:3000/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagID: tagId, domain: domain }),
-      },
-    );
+    const requestEndpoint = `/c/${registrationECI}/query/io.picolabs.new_tag_registry/scan_tag`;
+    const scanTagResponse = await postFetchRequest(requestEndpoint, {
+      tagID: tagId,
+      domain: domain,
+    });
 
     if (!scanTagResponse.ok) {
       throw new Error(
@@ -372,14 +342,10 @@ async function scanTag(tagId, domain) {
     console.log("scanTagData:", scanTagData);
     const tagECI = scanTagData.did;
 
-    const infoResponse = await fetch(
-      `http://localhost:3000/c/${tagECI}/query/io.picolabs.safeandmine/getInformation`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ info: "" }),
-      },
-    );
+    const infoRequestEndpoint = `/c/${tagECI}/query/io.picolabs.safeandmine/getInformation`;
+    const infoResponse = await postFetchRequest(infoRequestEndpoint, {
+      info: "",
+    });
 
     if (!infoResponse.ok) {
       throw new Error(
@@ -420,14 +386,9 @@ async function updateOwnerInfo(thingName, ownerInfo) {
     const thingEci = await getChildEciByName(manifoldEci, thingName);
     const validChannel = await getECIByTag(thingEci, "manifold");
 
-    const infoResponse = await fetch(
-      `http://localhost:3000/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ info: "" }),
-      },
-    );
+    const requestEndpoint = `/c/${validChannel}/query/io.picolabs.safeandmine/getInformation`;
+    const infoResponse = await postFetchRequest(requestEndpoint, { info: "" });
+
     let currentOwnerInfo = await infoResponse.json();
 
     // Accounts for case of object not having any owner info yet
@@ -453,13 +414,10 @@ async function updateOwnerInfo(thingName, ownerInfo) {
       }
     }
 
-    const updateResponse = await fetch(
-      `http://localhost:3000/c/${validChannel}/event-wait/safeandmine/update`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newOwnerInfo),
-      },
+    const updateRequestEndpoint = `/c/${validChannel}/event-wait/safeandmine/update`;
+    const updateResponse = await postFetchRequest(
+      updateRequestEndpoint,
+      newOwnerInfo,
     );
 
     const updateData = await updateResponse.json();
