@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 
-const API_URL = "http://localhost:3001";
+const API_URL = "http://18.189.3.146:3001";
 const socket = io(API_URL);
 
 const ChatComponent = () => {
