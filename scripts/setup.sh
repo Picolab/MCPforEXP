@@ -33,7 +33,7 @@ sleep 10
 
 echo "Calling install-manifold.js"
 
-if ! node install-manifold.js; then #> /dev/null 2>&1; then
+if ! node install-manifold.js > /dev/null 2>&1; then
     echo "ERROR: manifold failed to install"
     exit 1
 fi
