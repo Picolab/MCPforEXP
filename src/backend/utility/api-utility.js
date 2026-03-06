@@ -60,7 +60,7 @@ async function installOwner(eci) {
       "io.picolabs.manifold_owner.krl",
     );
 
-    const fileUrl = "file:///" + rulesetPath.split(path.sep).join("/");
+    const fileUrl = pathToFileURL(rulesetPath).href;
     await installRuleset(eci, fileUrl);
   } catch (error) {
     console.error(error);
