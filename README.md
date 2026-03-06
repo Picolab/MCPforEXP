@@ -20,7 +20,7 @@ The project is structured to clearly separate concerns and support scalability a
 │   │   ├── server/
 │   │   ├── llm/
 │   │   └── mcp/
-│   └── ui/
+│   └── frontend/
 ```
 
 ## Usage
@@ -198,3 +198,11 @@ Then to get the interface up and running:
 ```bash
 npm run client
 ```
+
+## Running the Frontend
+
+To test or use our frontend component for interacting with the MCP client/LLM, you will need three terminals open and running.
+
+1. Run the `pico-engine`
+2. Run `npm run dev` to open vite
+3. Run `npm run proxy` to connect to the mcp server
