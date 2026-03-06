@@ -24,6 +24,9 @@ pico-engine &> /dev/null & # When the pico engine starts, the logging can just g
 PICO_PID=$!
 echo "Pico server started with PID: $PICO_PID"
 
+echo "Waiting 10 seconds for engine to initialize..."
+sleep 10
+
 # Call the install-manifold.js and it will do the following:
 # 1. Call the pico, and grab the pico eci
 # 2. Install the manifold-owner krl to the installed pico
