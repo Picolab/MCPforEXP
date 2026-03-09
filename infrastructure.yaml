@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Provisions EC2, IAM Role for Bedrock, and a Protected Static Elastic IP."
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  AmiId:
+    Type: String
+    Default: "ami-09040d770ffe2224f" # Ubuntu 22.04 LTS in us-east-2
+  KeyName:
+    Type: "AWS::EC2::KeyPair::KeyName"
+    Description: Name of an existing EC2 KeyPair
+
+Resources:
+  # 1. IAM Role & Instance Profile (No change)
+  BedrockAccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ["ec2.amazonaws.com"]
+            Action: ["sts:AssumeRole"]
+      Policies:
+        - PolicyName: BedrockInvokePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "bedrock:InvokeModel"
+                  - "bedrock:InvokeModelWithResponseStream"
+                Resource: "*"
+
+  BedrockInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+        - !Ref BedrockAccessRole
+
+  # 2. Security Group (No change)
+  AppSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Allow SSH and Manifold Web Traffic
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3001
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3005
+          ToPort: 3005
+          CidrIp: 0.0.0.0/0
+
+  # 3. The EC2 Instance
+  ManifoldInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref BedrockInstanceProfile
+      ImageId: !Ref AmiId
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Manifold-Production-Host
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install -y nodejs npm git
+          npm install -g pm2
+          cd /home/ubuntu
+          git clone https://github.com/Picolab/MCPforEXP.git
+          cd MCPforEXP
+          npm install
+          # Setup initial environment here
+
+  # 4. Protected Elastic IP Resource
+  ManifoldEIP:
+    Type: "AWS::EC2::EIP"
+    DeletionPolicy: Retain # <--- Keeps the IP even if the stack is deleted
+    Properties:
+      Domain: vpc
+
+  # 5. The Association (With Dependency)
+  AssociateEIP:
+    Type: "AWS::EC2::EIPAssociation"
+    DependsOn: ManifoldInstance
+    Properties:
+      AllocationId: !GetAtt ManifoldEIP.AllocationId
+      InstanceId: !Ref ManifoldInstance
+
+Outputs:
+  StaticPublicIp:
+    Description: The permanent Static IP for your Manifold Assistant
+    Value: !Ref ManifoldEIP
