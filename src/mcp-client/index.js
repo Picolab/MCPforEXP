@@ -16,6 +16,9 @@ const {
   getManifoldContext,
   updateManifoldContext,
 } = require("../backend/llm/llm-context.js");
+const {
+  getToolsForSkills,
+} = require("../backend/skills-tool-bank.js");
 
 class MCPClient extends EventEmitter {
   constructor() {
@@ -26,6 +29,15 @@ class MCPClient extends EventEmitter {
 
     this.mcp = new Client({ name: "mcp-web-client", version: "1.0.0" });
     this.tools = [];
+    /**
+     * Logical Skills currently available for the active Thing / context.
+     * By default, every Thing has the core Manifold skills and safeandmine.
+     * The "journal" Skill is optional and can be added when the Journal
+     * ruleset is installed on a Thing.
+     *
+     * Example values: ["manifold_core", "safeandmine", "journal"]
+     */
+    this.currentSkills = ["manifold_core", "safeandmine"];
     this.modelId = "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
   }
 
@@ -239,6 +251,20 @@ class MCPClient extends EventEmitter {
                   .join("\n")
               : JSON.stringify(result);
 
+            // If we just derived Skills for a Thing, update currentSkills immediately
+            // so subsequent tool selection in this same query uses the correct subset.
+            if (name === "manifold_getThingSkills") {
+              try {
+                const parsed = JSON.parse(text);
+                const skills = parsed?.data?.skills;
+                if (Array.isArray(skills) && skills.length > 0) {
+                  this.setCurrentSkills(skills);
+                }
+              } catch (_) {
+                // Ignore parsing errors; tool result is still passed back to the LLM
+              }
+            }
+
             toolResults.push({
               toolResult: {
                 toolUseId,
@@ -281,13 +307,31 @@ class MCPClient extends EventEmitter {
 
   // Helper to keep processQuery clean
   prepareToolsForBedrock() {
-    return this.tools.map((tool) => ({
+    // Map current Skills to the subset of MCP tools that should be visible
+    const allowedToolsForSkills = getToolsForSkills(this.currentSkills);
+    const allowedNames = new Set(allowedToolsForSkills.map((t) => t.name));
+
+    return this.tools
+      .filter((tool) => allowedNames.has(tool.toolSpec.name))
+      .map((tool) => ({
       toolSpec: {
         name: tool.toolSpec.name,
         description: tool.toolSpec.description,
         inputSchema: { json: tool.toolSpec.inputSchema },
       },
     }));
+  }
+
+  /**
+   * Update the current Skills for the active Thing/context.
+   * This controls which MCP tools are advertised to the LLM.
+   *
+   * @param {string[]} skillNames - e.g. ["manifold_core", "safeandmine", "journal"]
+   */
+  setCurrentSkills(skillNames) {
+    if (Array.isArray(skillNames) && skillNames.length > 0) {
+      this.currentSkills = skillNames;
+    }
   }
 
   getSystemPrompt(version = "v0.1.0") {

@@ -27,6 +27,8 @@ const {
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,
+  manifold_getThingSkills,
+  manifold_installSkill,
   safeandmine_newtag,
   scanTag,
   updateOwnerInfo,
@@ -91,6 +93,35 @@ async function main() {
     },
     toolHandler(({ thingName, changedName, id }) =>
       manifold_change_thing_name(thingName, changedName, id),
+    ),
+  );
+
+  server.tool(
+    "manifold_getThingSkills",
+    "Derive which Skills are installed on a Thing by checking installed KRL rulesets.",
+    {
+      thingName: z
+        .string()
+        .describe("The name of the Thing pico to inspect for installed Skills"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, id }) => manifold_getThingSkills(thingName, id)),
+  );
+
+  server.tool(
+    "manifold_installSkill",
+    "Install a logical Skill on a Thing by installing its backing KRL ruleset (e.g., journal, safeandmine).",
+    {
+      thingName: z
+        .string()
+        .describe("The name of the Thing pico to install the Skill on"),
+      skillName: z
+        .enum(["journal", "safeandmine"])
+        .describe("The logical Skill name to install (journal or safeandmine)"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, skillName, id }) =>
+      manifold_installSkill(thingName, skillName, id),
     ),
   );
 
