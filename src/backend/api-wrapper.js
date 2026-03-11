@@ -203,6 +203,105 @@ async function getNote(thingName, title) {
 }
 
 /**
+ * Install a logical Skill on a Thing by installing its backing KRL ruleset.
+ *
+ * Supported skills:
+ * - "journal"    -> io.picolabs.journal   (installed on the Thing's engine UI pico)
+ * - "safeandmine"-> io.picolabs.safeandmine (installed on the Thing pico itself)
+ *
+ * @param {string} thingName
+ * @param {string} skillName
+ * @returns {Promise<object>} Installation result metadata
+ */
+async function installSkillForThing(thingName, skillName) {
+  const SKILL_MAP = {
+    journal: {
+      rid: "io.picolabs.journal",
+      installOn: "engine", // use the engine/UI pico for this Thing
+    },
+    safeandmine: {
+      rid: "io.picolabs.safeandmine",
+      installOn: "thing", // use the Thing pico itself
+    },
+  };
+
+  const skillDef = SKILL_MAP[skillName];
+  if (!skillDef) {
+    throw new Error(
+      `Unknown Skill "${skillName}". Supported Skills are: ${Object.keys(SKILL_MAP).join(", ")}`,
+    );
+  }
+
+  const manifoldEci = await traverseHierarchy();
+  const engineEci = await getChildEciByName(manifoldEci, thingName);
+  if (!engineEci) {
+    throw new Error(`Thing "${thingName}" not found`);
+  }
+
+  const targetEci =
+    skillDef.installOn === "engine" ? engineEci : engineEci; // currently both use the child pico ECI
+
+  const alreadyInstalled = await picoHasRuleset(targetEci, skillDef.rid);
+  if (alreadyInstalled) {
+    return {
+      thingName,
+      skill: skillName,
+      rid: skillDef.rid,
+      installed: false,
+      message: "Skill already installed.",
+    };
+  }
+
+  const absolutePath = path.join(
+    __dirname,
+    `../../Manifold-api/${skillDef.rid}.krl`,
+  );
+  await installRuleset(targetEci, pathToFileURL(absolutePath).href);
+
+  // Give the ruleset a brief moment to initialize
+  await new Promise((r) => setTimeout(r, 2000));
+
+  return {
+    thingName,
+    skill: skillName,
+    rid: skillDef.rid,
+    installed: true,
+    message: "Skill installation triggered.",
+  };
+}
+
+/**
+ * Derive a Thing's installed Skills from its installed KRL rulesets.
+ *
+ * Skill mapping (current project conventions):
+ * - "manifold_core": always available for Manifold things
+ * - "safeandmine": provided by ruleset rid "io.picolabs.safeandmine"
+ * - "journal": provided by ruleset rid "io.picolabs.journal"
+ *
+ * @param {string} thingName
+ * @returns {Promise<string[]>} skill names
+ */
+async function getThingSkills(thingName) {
+  const skills = ["manifold_core"];
+  const manifoldEci = await traverseHierarchy();
+  const thingEci = await getChildEciByName(manifoldEci, thingName);
+  if (!thingEci) {
+    throw new Error(`Thing "${thingName}" not found`);
+  }
+
+  // Safe & Mine is expected to be installed on all things, but we still check for correctness.
+  if (await picoHasRuleset(thingEci, "io.picolabs.safeandmine")) {
+    skills.push("safeandmine");
+  }
+
+  if (await picoHasRuleset(thingEci, "io.picolabs.journal")) {
+    skills.push("journal");
+  }
+
+  return skills;
+}
+
+/**
  * Removes a Thing Pico by it's name.
  * @async
  * @function deleteThing
@@ -451,6 +550,8 @@ module.exports = {
   createThing,
   addNote,
   getNote,
+  installSkillForThing,
+  getThingSkills,
   setSquareTag,
   scanTag,
   updateOwnerInfo,
