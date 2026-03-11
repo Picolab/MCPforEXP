@@ -103,13 +103,15 @@ Resources:
           sudo -u ubuntu pm2 start src/mcp-client/api-proxy.js --name "proxy"
 
           # Layer 3: The Vite UI (Port 3005)
-          sudo -u ubuntu pm2 start npm --name "ui" -- --prefix src/frontend run dev
+          sudo -u ubuntu pm2 start npm --name "ui" -- --prefix src/frontend run dev -- --host
 
           # 6. Persistence & Startup Configuration
-          # Saves the process list and ensures it restarts after EC2 reboots
           sudo -u ubuntu pm2 save
-          env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu  # 4. Protected Elastic IP Resource
 
+          # Saves the process list and ensures it restarts after EC2 reboots
+          env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu
+
+  # 4. Protected Elastic IP Resource
   ManifoldEIP:
     Type: "AWS::EC2::EIP"
     DeletionPolicy: Retain # <--- Keeps the IP even if the stack is deleted
