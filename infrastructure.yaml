@@ -77,7 +77,7 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           # 1. System Updates and Node.js Installation
-          curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           apt-get update -y
           apt-get install -y nodejs git
 
