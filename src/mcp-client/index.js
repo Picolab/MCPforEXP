@@ -20,12 +20,8 @@ const {
 class MCPClient extends EventEmitter {
   constructor() {
     super();
-    const token = process.env.AWS_BEARER_TOKEN_BEDROCK;
-    if (!token) throw new Error("AWS_BEARER_TOKEN_BEDROCK is missing");
-
     this.bedrock = new BedrockRuntimeClient({
       region: process.env.AWS_REGION || "us-east-2",
-      token: { token: token },
     });
 
     this.mcp = new Client({ name: "mcp-web-client", version: "1.0.0" });
