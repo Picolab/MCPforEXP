@@ -1,0 +1,27 @@
+name: Deploy to EC2
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: SSH and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }} # Your Elastic IP
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # Your .pem file content
+          script: |
+            cd ~/MCPforEXP
+            git fetch origin main
+            git reset --hard origin/main      # Discard local server changes (like .pico-engine)
+            npm install
+
+            # Restart only what changed to minimize downtime for your 30,000 users
+            pm2 restart proxy
+            pm2 restart ui
