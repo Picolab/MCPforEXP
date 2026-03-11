@@ -76,16 +76,40 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          # 1. System Updates and Node.js Installation
+          curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
           apt-get update -y
-          apt-get install -y nodejs npm git
-          npm install -g pm2
-          cd /home/ubuntu
-          git clone https://github.com/Picolab/MCPforEXP.git
-          cd MCPforEXP
-          npm install
-          # Setup initial environment here
+          apt-get install -y nodejs git
 
-  # 4. Protected Elastic IP Resource
+          # 2. Global Tool Installation
+          # Installs PM2 for process management and Pico-Engine globally
+          npm install -g pm2 pico-engine
+
+          # 3. Project Setup as 'ubuntu' user
+          cd /home/ubuntu
+          sudo -u ubuntu git clone https://github.com/Picolab/MCPforEXP.git
+          cd MCPforEXP
+          sudo -u ubuntu npm install
+
+          # 4. Initialize the Pico-Engine Database
+          # This runs your Manifold 'Thing' creation and ruleset registration
+          sudo -u ubuntu npm run setup
+
+          # 5. Start the 3-Tier Architecture via PM2
+          # Layer 1: The Engine (Port 3000)
+          sudo -u ubuntu pm2 start pico-engine --name "engine"
+
+          # Layer 2: The API Proxy (Port 3001)
+          sudo -u ubuntu pm2 start src/mcp-client/api-proxy.js --name "proxy"
+
+          # Layer 3: The Vite UI (Port 3005)
+          sudo -u ubuntu pm2 start npm --name "ui" -- --prefix src/frontend run dev
+
+          # 6. Persistence & Startup Configuration
+          # Saves the process list and ensures it restarts after EC2 reboots
+          sudo -u ubuntu pm2 save
+          env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu  # 4. Protected Elastic IP Resource
+
   ManifoldEIP:
     Type: "AWS::EC2::EIP"
     DeletionPolicy: Retain # <--- Keeps the IP even if the stack is deleted
