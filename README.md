@@ -35,6 +35,14 @@ Make sure you’ve installed project dependencies:
 npm install
 ```
 
+### Environment Variables
+
+Create a .env file with the following variables:
+
+AWS_REGION='us-east-2'
+PICO_ENGINE_BASE_URL=http://localhost:3000
+VITE_API_URL=http://manny.picolabs.io:3001
+
 ### Setup
 
 Run the full project setup. This will install the manifold ruleset to the pico.
