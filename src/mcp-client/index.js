@@ -6,33 +6,41 @@ const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 const {
   StdioClientTransport,
 } = require("@modelcontextprotocol/sdk/client/stdio.js");
-const readline = require("readline");
-const { promisify } = require("util");
+const EventEmitter = require("events");
 const dotenv = require("dotenv");
+const fs = require("fs");
 const path = require("path");
 // Ensure dotenv finds the .env at the project root
 dotenv.config({ path: path.join(__dirname, "../../.env") });
-class MCPClient {
-  mcp;
-  bedrock;
-  transport = null;
-  tools = [];
-  // Correct Inference Profile ID for Claude 3.5 Sonnet v2
-  modelId = "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
+const {
+  getManifoldContext,
+  updateManifoldContext,
+} = require("../backend/llm/llm-context.js");
+const {
+  getToolsForSkills,
+} = require("../backend/skills-tool-bank.js");
+
+class MCPClient extends EventEmitter {
   constructor() {
-    const token = process.env.AWS_BEARER_TOKEN_BEDROCK;
-    if (!token) {
-      throw new Error("AWS_BEARER_TOKEN_BEDROCK is missing from .env file");
-    }
-    const region = process.env.AWS_REGION || "us-east-2";
-    // Configure Bedrock client with bearer token authentication
-    // Note: This uses a custom token configuration - adjust if using standard AWS credentials
+    super();
     this.bedrock = new BedrockRuntimeClient({
-      region: region,
-      token: { token: token },
+      region: process.env.AWS_REGION || "us-east-2",
     });
-    this.mcp = new Client({ name: "mcp-client-cli", version: "1.0.0" });
+
+    this.mcp = new Client({ name: "mcp-web-client", version: "1.0.0" });
+    this.tools = [];
+    /**
+     * Logical Skills currently available for the active Thing / context.
+     * By default, every Thing has the core Manifold skills and safeandmine.
+     * The "journal" Skill is optional and can be added when the Journal
+     * ruleset is installed on a Thing.
+     *
+     * Example values: ["manifold_core", "safeandmine", "journal"]
+     */
+    this.currentSkills = ["manifold_core", "safeandmine"];
+    this.modelId = "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
   }
+
   async refreshTools() {
     console.log("Refreshing available tools...");
     const toolsResult = await this.mcp.listTools();
@@ -162,6 +170,7 @@ class MCPClient {
       `Loaded ${this.tools.length} tools: ${this.tools.map((t) => t.toolSpec.name).join(", ")}`,
     );
   }
+
   async connectToServer(serverScriptPath) {
     try {
       const command = serverScriptPath.endsWith(".py")
@@ -180,198 +189,168 @@ class MCPClient {
       throw e;
     }
   }
+
   async processQuery(query) {
-    let messages = [{ role: "user", content: [{ text: query }] }];
+    // 1. Fetch history and the system prompt
+    const fullHistory = await getManifoldContext();
+    const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
+    const systemPrompt = this.getSystemPrompt("v0.1.0"); // Matches your file versioning
+
+    // 2. Format history for Bedrock
+    let messages = [...history, { role: "user", content: [{ text: query }] }];
+    if (messages.length > 0 && messages[0].role !== "user") {
+      messages.shift();
+    }
+
     try {
-      // Validate tools before sending to Bedrock
-      if (!this.tools || this.tools.length === 0) {
-        return "Error: No tools available. Try /refresh to reload tools.";
-      }
+      let loopCount = 0;
+      const maxLoops = 5;
+      let assistantResponse = "";
 
-      // Validate each tool's inputSchema before sending
-      const invalidTools = this.tools.filter((tool) => {
-        const schema = tool.toolSpec?.inputSchema;
-        return (
-          !schema ||
-          typeof schema !== "object" ||
-          !schema.type ||
-          !schema.properties
-        );
+      let command = new ConverseCommand({
+        modelId: this.modelId,
+        system: [{ text: systemPrompt }],
+        messages,
+        toolConfig: { tools: this.prepareToolsForBedrock() },
       });
 
-      if (invalidTools.length > 0) {
-        console.error(
-          `[ERROR] Found ${invalidTools.length} tools with invalid schemas:`,
-          invalidTools.map((t) => t.toolSpec?.name).join(", "),
-        );
-        // Filter out invalid tools
-        this.tools = this.tools.filter((tool) => {
-          const schema = tool.toolSpec?.inputSchema;
-          return (
-            schema &&
-            typeof schema === "object" &&
-            schema.type &&
-            schema.properties
-          );
-        });
-        if (this.tools.length === 0) {
-          return "Error: All tools have invalid schemas. Please check the MCP server configuration.";
-        }
-      }
-
-      // Create a deep copy of tools to ensure no reference issues
-      // Also ensure each schema is a plain object with no prototype chain issues
-      const toolsForBedrock = this.tools.map((tool) => {
-        const schema = tool.toolSpec.inputSchema;
-
-        // Bedrock REQUIRES these three specific fields to be present
-        const cleanInputSchema = {
-          type: "object",
-          properties:
-            schema &&
-            schema.properties &&
-            Object.keys(schema.properties).length > 0
-              ? { ...schema.properties }
-              : {},
-          // Bedrock often fails if 'required' is missing, even if empty
-          required:
-            schema && Array.isArray(schema.required)
-              ? [...schema.required]
-              : [],
-        };
-
-        return {
-          toolSpec: {
-            name: tool.toolSpec.name,
-            description: tool.toolSpec.description || "Manifold Tool",
-            inputSchema: { json: cleanInputSchema }, // MUST be wrapped in 'json' for the Converse API
-          },
-        };
-      });
-
-      try {
-        const command = new ConverseCommand({
-          modelId: this.modelId,
-          messages,
-          toolConfig: { tools: toolsForBedrock },
-        });
+      while (loopCount < maxLoops) {
+        // Notify UI: We are waiting for the LLM
+        this.emit("status", { message: "Claude is thinking..." });
 
         const response = await this.bedrock.send(command);
-        const finalText = [];
         const outputMessage = response.output?.message;
-        if (!outputMessage) return "Error: No response from model.";
+        if (!outputMessage) break;
+
         messages.push(outputMessage);
-        for (const content of outputMessage.content || []) {
-          if (content.text) {
-            finalText.push(content.text);
-          } else if (content.toolUse) {
-            const toolName = content.toolUse.name;
-            const toolArgs = content.toolUse.input ?? {};
-            console.log(`[Tool Call: ${toolName}]`);
-            const result = await this.mcp.callTool({
-              name: toolName,
-              arguments: toolArgs,
+        const toolCalls = outputMessage.content.filter((c) => c.toolUse);
+        const textParts = outputMessage.content
+          .filter((c) => c.text)
+          .map((c) => c.text);
+
+        if (textParts.length > 0) {
+          assistantResponse +=
+            (assistantResponse ? "\n" : "") + textParts.join("\n");
+        }
+
+        if (toolCalls.length === 0) break;
+
+        const toolResults = [];
+        for (const content of toolCalls) {
+          const { name, input, toolUseId } = content.toolUse;
+
+          // CRITICAL FOR UI: Tell the user EXACTLY what tool is running
+          this.emit("tool-use", { name, input });
+
+          try {
+            const result = await this.mcp.callTool({ name, arguments: input });
+            let text = result.content
+              ? result.content
+                  .filter((c) => c.type === "text")
+                  .map((c) => c.text)
+                  .join("\n")
+              : JSON.stringify(result);
+
+            // If we just derived Skills for a Thing, update currentSkills immediately
+            // so subsequent tool selection in this same query uses the correct subset.
+            if (name === "manifold_getThingSkills") {
+              try {
+                const parsed = JSON.parse(text);
+                const skills = parsed?.data?.skills;
+                if (Array.isArray(skills) && skills.length > 0) {
+                  this.setCurrentSkills(skills);
+                }
+              } catch (_) {
+                // Ignore parsing errors; tool result is still passed back to the LLM
+              }
+            }
+
+            toolResults.push({
+              toolResult: {
+                toolUseId,
+                content: [{ text }],
+                status: result.isError ? "error" : "success",
+              },
             });
-            // Extract text content from MCP tool result
-            let toolResultText = "";
-            if (result.content && Array.isArray(result.content)) {
-              const textParts = result.content
-                .filter((c) => c.type === "text")
-                .map((c) => c.text);
-              toolResultText = textParts.join("\n");
-            } else {
-              toolResultText = JSON.stringify(result, null, 2);
-            }
-            const toolResult = {
-              role: "user",
-              content: [
-                {
-                  toolResult: {
-                    toolUseId: content.toolUse.toolUseId,
-                    content: [{ text: toolResultText }],
-                    status: result.isError ? "error" : "success",
-                  },
-                },
-              ],
-            };
-            messages.push(toolResult);
-            const finalResponse = await this.bedrock.send(
-              new ConverseCommand({
-                modelId: this.modelId,
-                messages,
-                toolConfig: { tools: toolsForBedrock },
-              }),
-            );
-            // Safely extract text from the final response
-            const lastContent = finalResponse.output?.message?.content?.[0];
-            if (lastContent?.text) {
-              finalText.push(lastContent.text);
-            } else {
-              finalText.push(
-                "[Tool execution successful, but no follow-up text provided]",
-              );
-            }
+          } catch (toolErr) {
+            toolResults.push({
+              toolResult: {
+                toolUseId,
+                content: [{ text: `Error: ${toolErr.message}` }],
+                status: "error",
+              },
+            });
           }
         }
-        return finalText.length > 0
-          ? finalText.join("\n")
-          : "Model provided no text response.";
-      } catch (e) {
-        return `Error processing query: ${e.message}`;
+
+        messages.push({ role: "user", content: toolResults });
+        command = new ConverseCommand({
+          modelId: this.modelId,
+          system: [{ text: systemPrompt }],
+          messages,
+          toolConfig: { tools: this.prepareToolsForBedrock() },
+        });
+        loopCount++;
       }
+
+      await updateManifoldContext([
+        ...history,
+        { role: "user", content: [{ text: query }] },
+        { role: "assistant", content: [{ text: assistantResponse }] },
+      ]);
+
+      return assistantResponse;
     } catch (e) {
-      return `Error processing query: ${e.message}`;
+      throw e; // Let the Express API handle the error response
     }
   }
-  async chatLoop() {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-    const question = (query) =>
-      new Promise((resolve) => rl.question(query, resolve));
-    console.log("\nMCP Client Started! Ready for your Manifold queries.");
-    console.log("Type 'quit' to exit, '/refresh' to reload tools.\n");
+
+  // Helper to keep processQuery clean
+  prepareToolsForBedrock() {
+    // Map current Skills to the subset of MCP tools that should be visible
+    const allowedToolsForSkills = getToolsForSkills(this.currentSkills);
+    const allowedNames = new Set(allowedToolsForSkills.map((t) => t.name));
+
+    return this.tools
+      .filter((tool) => allowedNames.has(tool.toolSpec.name))
+      .map((tool) => ({
+      toolSpec: {
+        name: tool.toolSpec.name,
+        description: tool.toolSpec.description,
+        inputSchema: { json: tool.toolSpec.inputSchema },
+      },
+    }));
+  }
+
+  /**
+   * Update the current Skills for the active Thing/context.
+   * This controls which MCP tools are advertised to the LLM.
+   *
+   * @param {string[]} skillNames - e.g. ["manifold_core", "safeandmine", "journal"]
+   */
+  setCurrentSkills(skillNames) {
+    if (Array.isArray(skillNames) && skillNames.length > 0) {
+      this.currentSkills = skillNames;
+    }
+  }
+
+  getSystemPrompt(version = "v0.1.0") {
     try {
-      while (true) {
-        const message = await question("\nQuery: ");
-        if (
-          !message ||
-          message.toLowerCase() === "quit" ||
-          message.toLowerCase() === "exit"
-        ) {
-          break;
-        }
-        if (message.toLowerCase() === "/refresh") {
-          await this.refreshTools();
-          continue;
-        }
-        const response = await this.processQuery(message);
-        console.log("\n" + response);
-      }
-    } finally {
-      rl.close();
+      // Adjusted path to look for the 'prompts' folder at your project root
+      const promptPath = path.join(
+        __dirname,
+        "../../prompts",
+        `manifold_${version}.md`,
+      );
+      return fs.readFileSync(promptPath, "utf8");
+    } catch (err) {
+      console.warn(
+        `[WARN] Could not load system prompt version ${version}. Using default.`,
+      );
+      return "You are a helpful AI assistant for the Manifold platform.";
     }
   }
-  async cleanup() {
-    await this.mcp.close();
-  }
 }
-async function main() {
-  const serverPath = process.argv[2] || "src/backend/mcp-server/server.js";
-  if (process.argv.length < 3) {
-    console.log(`Usage: node mcp-client/index.js <path_to_server_script>`);
-    console.log(`Using default server path: ${serverPath}`);
-  }
-  const client = new MCPClient();
-  try {
-    await client.connectToServer(serverPath);
-    await client.chatLoop();
-  } catch (e) {
-    console.error("Main Error:", e);
-    process.exit(1);
-  } finally {
-    await client.cleanup();
-  }
-}
-main();
+
+// Export for testing
+module.exports = { MCPClient };

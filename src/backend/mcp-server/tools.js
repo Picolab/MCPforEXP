@@ -85,10 +85,20 @@ const OUTPUT_SCHEMA = {
   },
 };
 
-function tool({ name, description, properties, required, outputDescription }) {
+function tool({
+  name,
+  description,
+  properties,
+  required,
+  outputDescription,
+  skill,
+}) {
   return {
     name,
     description,
+    // Logical grouping for dynamic tool exposure based on installed Skills
+    // e.g. "manifold_core", "safeandmine", "journal"
+    skill,
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -105,6 +115,7 @@ function tool({ name, description, properties, required, outputDescription }) {
 // Manifold pico
 const manifold_getThings = tool({
   name: "manifold_getThings",
+  skill: "manifold_core",
   description:
     "List all digital things managed by Manifold. No arguments required.",
   properties: { id: TOOL_COMMON_PROPS.id },
@@ -115,6 +126,7 @@ const manifold_getThings = tool({
 
 const manifold_create_thing = tool({
   name: "manifold_create_thing",
+  skill: "manifold_core",
   description: "KRL event: manifold/create_thing (attrs: name)",
   properties: {
     ...TOOL_COMMON_PROPS,
@@ -127,6 +139,7 @@ const manifold_create_thing = tool({
 
 const manifold_remove_thing = tool({
   name: "manifold_remove_thing",
+  skill: "manifold_core",
   description: "Remove a thing pico from Manifold by its name.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
@@ -142,6 +155,7 @@ const manifold_remove_thing = tool({
 
 const manifold_change_thing_name = tool({
   name: "manifold_change_thing_name",
+  skill: "manifold_core",
   description:
     "Rename a thing pico. Use the thing's current name and the new name.",
   properties: {
@@ -157,9 +171,49 @@ const manifold_change_thing_name = tool({
     "Event result (typically empty data object, check meta.httpStatus for success)",
 });
 
+const manifold_getThingSkills = tool({
+  name: "manifold_getThingSkills",
+  skill: "manifold_core",
+  description:
+    "Derive which Skills are installed on a Thing by checking installed KRL rulesets.",
+  properties: {
+    id: TOOL_COMMON_PROPS.id,
+    thingName: {
+      type: "string",
+      description: "The name of the Thing pico to inspect for installed Skills.",
+    },
+  },
+  required: ["thingName"],
+  outputDescription:
+    "Returns { thingName, skills: string[] } in data, where skills are logical groups like manifold_core, safeandmine, journal.",
+});
+
+const manifold_installSkill = tool({
+  name: "manifold_installSkill",
+  skill: "manifold_core",
+  description:
+    "Install a logical Skill on a Thing by installing its backing KRL ruleset (e.g., journal, safeandmine).",
+  properties: {
+    id: TOOL_COMMON_PROPS.id,
+    thingName: {
+      type: "string",
+      description: "The name of the Thing pico to install the Skill on.",
+    },
+    skillName: {
+      type: "string",
+      description:
+        "Logical Skill name to install (e.g., 'journal' or 'safeandmine').",
+    },
+  },
+  required: ["thingName", "skillName"],
+  outputDescription:
+    "Returns installation metadata, including which Skill and RID were installed for the Thing.",
+});
+
 const safeandmine_newtag = tool({
   name: "safeandmine_newtag",
-  description: "Assign a physical SquareTag to a named Pico.",
+  skill: "safeandmine",
+  description: "Assign a physical tag to a named Pico.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
     thingName: { type: "string", description: "The name of the Pico to tag." },
@@ -167,7 +221,6 @@ const safeandmine_newtag = tool({
     domain: {
       type: "string",
       description: "Tag domain/type (e.g., sqtg).",
-      default: "sqtg",
     },
   },
   required: ["thingName", "tagID"],
@@ -177,6 +230,7 @@ const safeandmine_newtag = tool({
 
 const scanTag = tool({
   name: "scanTag",
+  skill: "safeandmine",
   description: "Get owner info from a SquareTag scan.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
@@ -193,6 +247,7 @@ const scanTag = tool({
 
 const updateOwnerInfo = tool({
   name: "updateOwnerInfo",
+  skill: "safeandmine",
   description: "Update owner info for a thing.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
@@ -231,6 +286,7 @@ const updateOwnerInfo = tool({
 
 const addNote = tool({
   name: "addNote",
+  skill: "journal",
   description: "Add a note to a thing.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
@@ -248,6 +304,7 @@ const addNote = tool({
 
 const getNote = tool({
   name: "getNote",
+  skill: "journal",
   description: "Get a note from a thing by title.",
   properties: {
     id: TOOL_COMMON_PROPS.id,
@@ -264,16 +321,32 @@ const getNote = tool({
   outputDescription: "Returns the content of the requested note.",
 });
 
+const ALL_TOOLS = [
+  manifold_getThings,
+  manifold_create_thing,
+  manifold_remove_thing,
+  manifold_change_thing_name,
+  manifold_getThingSkills,
+  manifold_installSkill,
+  safeandmine_newtag,
+  scanTag,
+  updateOwnerInfo,
+  addNote,
+  getNote,
+];
+
+// Index tools by Skill name for dynamic tool exposure:
+// { [skillName: string]: string[] } mapping Skill -> MCP tool names
+const SKILL_TOOL_INDEX = ALL_TOOLS.reduce((acc, t) => {
+  const skillName = t.skill || "manifold_core";
+  if (!acc[skillName]) {
+    acc[skillName] = [];
+  }
+  acc[skillName].push(t.name);
+  return acc;
+}, {});
+
 module.exports = {
-  tools: [
-    manifold_getThings,
-    manifold_create_thing,
-    manifold_remove_thing,
-    manifold_change_thing_name,
-    safeandmine_newtag,
-    scanTag,
-    updateOwnerInfo,
-    addNote,
-    getNote,
-  ],
+  tools: ALL_TOOLS,
+  SKILL_TOOL_INDEX,
 };

@@ -27,6 +27,8 @@ const {
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,
+  manifold_getThingSkills,
+  manifold_installSkill,
   safeandmine_newtag,
   scanTag,
   updateOwnerInfo,
@@ -95,12 +97,41 @@ async function main() {
   );
 
   server.tool(
+    "manifold_getThingSkills",
+    "Derive which Skills are installed on a Thing by checking installed KRL rulesets.",
+    {
+      thingName: z
+        .string()
+        .describe("The name of the Thing pico to inspect for installed Skills"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, id }) => manifold_getThingSkills(thingName, id)),
+  );
+
+  server.tool(
+    "manifold_installSkill",
+    "Install a logical Skill on a Thing by installing its backing KRL ruleset (e.g., journal, safeandmine).",
+    {
+      thingName: z
+        .string()
+        .describe("The name of the Thing pico to install the Skill on"),
+      skillName: z
+        .enum(["journal", "safeandmine"])
+        .describe("The logical Skill name to install (journal or safeandmine)"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, skillName, id }) =>
+      manifold_installSkill(thingName, skillName, id),
+    ),
+  );
+
+  server.tool(
     "safeandmine_newtag",
-    "Assign a physical SquareTag to a named Pico.",
+    "Assign a physical tag to a named Pico.",
     {
       thingName: z.string().describe("The name of the Pico to tag"),
       tagID: z.string().describe("The alphanumeric tag ID"),
-      domain: z.string().default("sqtg"),
+      domain: z.string().describe("The domain of the tag (e.g. 'sqtg')"),
     },
     toolHandler(({ thingName, tagID, domain, id }) =>
       safeandmine_newtag(thingName, tagID, domain, id),
@@ -109,10 +140,10 @@ async function main() {
 
   server.tool(
     "scanTag",
-    "Scan a SquareTag by its ID and domain to see if it's registered to any Pico.",
+    "Scan a tag by its ID and domain to see if it's registered to any Pico.",
     {
       tagID: z.string().describe("The alphanumeric tag ID"),
-      domain: z.string().default("sqtg"),
+      domain: z.string().describe("The domain of the tag (e.g. 'sqtg')"),
       id: z.string().optional(),
     },
     toolHandler(({ tagID, domain, id }) => scanTag(tagID, domain, id)),

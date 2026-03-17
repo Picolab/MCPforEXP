@@ -1,4 +1,5 @@
 const { getSkillsRegistryECI } = require("./utility/eci-utility.js");
+const { postFetchRequest } = require("./utility/http-utility.js");
 
 /**
  * Gets all available skills, or searches for a single skill by name if given the name as an argument
@@ -10,14 +11,8 @@ const { getSkillsRegistryECI } = require("./utility/eci-utility.js");
 async function getSkills(skillName = "") {
   const eci = await getSkillsRegistryECI();
 
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/query/io.picolabs.manifold.skills_registry/getSkills`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: skillName }),
-    },
-  );
+  const requestEndpoint = `/c/${eci}/query/io.picolabs.manifold.skills_registry/getSkills`;
+  const response = await postFetchRequest(requestEndpoint, { name: skillName });
 
   const data = await response.json();
   return data;
@@ -36,20 +31,14 @@ async function getSkills(skillName = "") {
 async function addSkill(skillName, rid, tools, url = "") {
   const eci = await getSkillsRegistryECI();
 
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/event-wait/manifold/new_skill_available`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: skillName,
-        rid: rid,
-        tools: tools,
-        url: url,
-      }),
-    },
-  );
+  const requestEndpoint = `/c/${eci}/event-wait/manifold/new_skill_available`;
 
+  const response = await postFetchRequest(requestEndpoint, {
+    name: skillName,
+    rid: rid,
+    tools: tools,
+    url: url,
+  });
   const data = await response.json();
   return data;
 }
@@ -64,16 +53,8 @@ async function addSkill(skillName, rid, tools, url = "") {
 async function removeSkill(skillName) {
   const eci = await getSkillsRegistryECI();
 
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/event-wait/manifold/remove_skill`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: skillName,
-      }),
-    },
-  );
+  const requestEndpoint = `/c/${eci}/event-wait/manifold/remove_skill`;
+  const response = await postFetchRequest(requestEndpoint, { name: skillName });
 
   const data = await response.json();
   return data;
@@ -91,19 +72,12 @@ async function removeSkill(skillName) {
 async function addToolToSkill(skillName, toolName, toolContent) {
   const eci = await getSkillsRegistryECI();
 
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/event-wait/manifold/new_tool_available`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: skillName,
-        tool_name: toolName,
-        tool: toolContent,
-      }),
-    },
-  );
-
+  const requestEndpoint = `/c/${eci}/event-wait/manifold/new_tool_available`;
+  const response = await postFetchRequest(requestEndpoint, {
+    name: skillName,
+    tool_name: toolName,
+    tool: toolContent,
+  });
   const data = await response.json();
   return data;
 }
@@ -119,17 +93,11 @@ async function addToolToSkill(skillName, toolName, toolContent) {
 async function removeToolFromSkill(skillName, toolName) {
   const eci = await getSkillsRegistryECI();
 
-  const response = await fetch(
-    `http://localhost:3000/c/${eci}/event-wait/manifold/remove_tool`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: skillName,
-        tool_name: toolName,
-      }),
-    },
-  );
+  const requestEndpoint = `/c/${eci}/event-wait/manifold/remove_tool`;
+  const response = await postFetchRequest(requestEndpoint, {
+    name: skillName,
+    tool_name: toolName,
+  });
 
   const data = await response.json();
   return data;

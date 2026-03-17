@@ -20,7 +20,7 @@ The project is structured to clearly separate concerns and support scalability a
 │   │   ├── server/
 │   │   ├── llm/
 │   │   └── mcp/
-│   └── ui/
+│   └── frontend/
 ```
 
 ## Usage
@@ -34,6 +34,14 @@ Make sure you’ve installed project dependencies:
 ```bash
 npm install
 ```
+
+### Environment Variables
+
+Create a .env file with the following variables:
+
+AWS_REGION='us-east-2'
+PICO_ENGINE_BASE_URL=http://localhost:3000
+VITE_API_URL=http://manny.picolabs.io:3001
 
 ### Setup
 
@@ -198,3 +206,14 @@ Then to get the interface up and running:
 ```bash
 npm run client
 ```
+
+## Running the Frontend
+
+To test or use our frontend component for interacting with the MCP client/LLM, you will need two terminals open and running.
+
+1. Run `npm run dev` to open vite
+2. Run `npm run proxy` to connect to the mcp server
+
+Alternatively, open `http://18.217.240.202:3005/` in your browser to see the chatbot or `http://18.217.240.202:3000/` to see the associated pico-engine.
+
+NOTE: As it's currently configured, no matter which way the chatbot is opened, it will connect to the pico-engine instance running on the EC2 server. Any interactions you make with the pico-engine will be recorded and show up for any othe user. Multi-tenancy will be the next step.

@@ -205,11 +205,57 @@ async function getNote(thingName, title, id) {
   }
 }
 
+/**
+ * Derives which Skills are installed on a Thing by checking its installed rulesets.
+ * @param {string} thingName
+ * @param {string|number} id
+ * @returns {Promise<KrlResponse>} Standard envelope with { skills: string[] }
+ */
+async function manifold_getThingSkills(thingName, id) {
+  try {
+    const skills = await api.getThingSkills(thingName);
+    return okResponse({
+      id,
+      data: { thingName, skills },
+      meta: { kind: "query", domain: "manifold", type: "get_thing_skills" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
+/**
+ * Installs a logical Skill on a Thing by installing its backing KRL ruleset.
+ * @param {string} thingName
+ * @param {string} skillName - e.g. "journal" or "safeandmine"
+ * @param {string|number} id
+ * @returns {Promise<KrlResponse>} Standard envelope with installation metadata
+ */
+async function manifold_installSkill(thingName, skillName, id) {
+  try {
+    const result = await api.installSkillForThing(thingName, skillName);
+    return okResponse({
+      id,
+      data: result,
+      meta: {
+        kind: "event",
+        domain: "manifold",
+        type: "install_skill",
+        httpStatus: 200,
+      },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
 module.exports = {
   manifold_getThings,
   manifold_create_thing,
   manifold_remove_thing,
   manifold_change_thing_name,
+  manifold_getThingSkills,
+  manifold_installSkill,
   safeandmine_newtag,
   scanTag,
   updateOwnerInfo,
