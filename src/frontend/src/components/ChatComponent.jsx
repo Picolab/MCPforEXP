@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
+import VoiceInput from "./VoiceComponent";
 
 // In production, prefer same-origin so `/api` and `/socket.io` can be reverse-proxied
 // by the web server hosting the UI (e.g., manny.picolabs.io:3005 -> backend :3001).
@@ -13,6 +14,12 @@ const ChatComponent = () => {
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  const handleTranscript = (text) => {
+    if (!text.trim()) return;
+    setInput((prev) => (prev ? prev + " " : "") + text);
+  };
 
   useEffect(() => {
     // Create the socket connection on mount to avoid stale global connections.
@@ -39,6 +46,15 @@ const ChatComponent = () => {
       socket.disconnect();
     };
   }, []);
+
+  // ✅ Resize textarea whenever input changes (typing or voice)
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"; // reset
+      textareaRef.current.style.height =
+        textareaRef.current.scrollHeight + "px";
+    }
+  }, [input]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,7 +128,9 @@ const ChatComponent = () => {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex w-full ${
+              msg.role === "user" ? "justify-end" : "justify-start"
+            }`}
           >
             <div
               className={`max-w-[85%] px-4 py-2.5 shadow-sm text-left ${
@@ -128,7 +146,7 @@ const ChatComponent = () => {
           </div>
         ))}
 
-        {/* Bouncing Dots Status */}
+        {/* Status Bouncing Dots */}
         {status && (
           <div className="flex justify-start items-center">
             <div className="bg-white border border-gray-100 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
@@ -149,15 +167,25 @@ const ChatComponent = () => {
       {/* Input Area */}
       <form
         onSubmit={sendMessage}
-        className="p-4 bg-white border-t border-gray-100 flex items-center gap-3"
+        className="p-4 bg-white border-t border-gray-100 flex items-end gap-2"
       >
-        <input
-          className="flex-1 bg-gray-100 text-gray-800 text-sm rounded-full px-5 py-3 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Message Manifold..."
-          disabled={isLoading}
-        />
+        <div className="relative flex-1">
+          <textarea
+            ref={textareaRef} // ✅ Attach ref
+            className="w-full bg-gray-100 text-gray-800 text-sm rounded-full px-5 py-3 pr-12 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Message Manifold..."
+            disabled={isLoading}
+            rows={1}
+            style={{ lineHeight: "1.5rem" }}
+          />
+          {/* Voice Button inside input */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <VoiceInput onTranscript={handleTranscript} disabled={isLoading} />
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
@@ -168,11 +196,17 @@ const ChatComponent = () => {
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
+              fill="none"
               viewBox="0 0 24 24"
-              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth={2}
               className="w-5 h-5"
             >
-              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 10l9-4 8 4-9 4-8-4z M3 10l9 4 8-4"
+              />
             </svg>
           )}
         </button>
