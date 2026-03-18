@@ -29,6 +29,9 @@ class MCPClient extends EventEmitter {
 
     this.mcp = new Client({ name: "mcp-web-client", version: "1.0.0" });
     this.tools = [];
+    this.serverScriptPath = null;
+    this.isConnected = false;
+    this._connectingPromise = null;
     /**
      * Logical Skills currently available for the active Thing / context.
      * By default, every Thing has the core Manifold skills and safeandmine.
@@ -173,6 +176,7 @@ class MCPClient extends EventEmitter {
 
   async connectToServer(serverScriptPath) {
     try {
+      this.serverScriptPath = serverScriptPath;
       const command = serverScriptPath.endsWith(".py")
         ? process.platform === "win32"
           ? "python"
@@ -184,13 +188,43 @@ class MCPClient extends EventEmitter {
       });
       await this.mcp.connect(this.transport);
       await this.refreshTools();
+      this.isConnected = true;
     } catch (e) {
+      this.isConnected = false;
       console.error("Failed to connect to server:", e);
       throw e;
     }
   }
 
+  /**
+   * Best-effort guard to keep the MCP transport alive in long-running web deployments.
+   * Stdio transports can die if the child process exits or the host restarts.
+   */
+  async ensureConnected() {
+    if (this.isConnected) return;
+    if (!this.serverScriptPath) {
+      throw new Error("MCP serverScriptPath not set; call connectToServer first");
+    }
+    if (this._connectingPromise) {
+      await this._connectingPromise;
+      return;
+    }
+    this._connectingPromise = (async () => {
+      await this.connectToServer(this.serverScriptPath);
+    })();
+    try {
+      await this._connectingPromise;
+    } finally {
+      this._connectingPromise = null;
+    }
+  }
+
   async processQuery(query) {
+    // If MCP dropped between requests, try to restore it before starting the tool loop.
+    await this.ensureConnected().catch(() => {
+      // If this fails, tool calls will surface the concrete error; the API proxy will return 500.
+    });
+
     // 1. Fetch history and the system prompt
     const fullHistory = await getManifoldContext();
     const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
@@ -243,6 +277,8 @@ class MCPClient extends EventEmitter {
           this.emit("tool-use", { name, input });
 
           try {
+            // Tool use is where "Not connected" typically surfaces; attempt a one-time reconnect.
+            await this.ensureConnected();
             const result = await this.mcp.callTool({ name, arguments: input });
             let text = result.content
               ? result.content
@@ -273,6 +309,7 @@ class MCPClient extends EventEmitter {
               },
             });
           } catch (toolErr) {
+            this.isConnected = false;
             toolResults.push({
               toolResult: {
                 toolUseId,
