@@ -339,7 +339,7 @@ async function manifold_change_thing_name(thingName, changedName) {
   const eci = await traverseHierarchy();
 
   const requestEndpoint = `/c/${eci}/event/manifold/change_thing_name`;
-  const response = postFetchRequest({ picoID, changedName });
+  const response = await postFetchRequest(requestEndpoint, { picoID, changedName });
 
   if (!response.ok) {
     throw new Error(

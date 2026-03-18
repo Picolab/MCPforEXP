@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import VoiceInput from "./VoiceComponent";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://18.217.240.202:3001";
-const socket = io(API_URL);
+// In production, prefer same-origin so `/api` and `/socket.io` can be reverse-proxied
+// by the web server hosting the UI (e.g., manny.picolabs.io:3005 -> backend :3001).
+const DEFAULT_BASE_URL =
+  typeof window !== "undefined" ? window.location.origin : "";
+const API_URL = import.meta.env.VITE_API_URL || DEFAULT_BASE_URL;
 
 const ChatComponent = () => {
   const [messages, setMessages] = useState([]);
@@ -19,13 +22,28 @@ const ChatComponent = () => {
   };
 
   useEffect(() => {
+    // Create the socket connection on mount to avoid stale global connections.
+    const socket = io(API_URL, {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelayMax: 5000,
+    });
+
     socket.on("assistant-status", (data) => setStatus(data.message));
     socket.on("assistant-tool", (data) =>
       setStatus(`Running: ${data.name}...`),
     );
+    socket.on("connect_error", () => {
+      // Keep it short; the chat request itself will show a concrete error if it fails.
+      setStatus("Realtime connection lost; retrying...");
+    });
     return () => {
       socket.off("assistant-status");
       socket.off("assistant-tool");
+      socket.off("connect_error");
+      socket.disconnect();
     };
   }, []);
 
@@ -53,7 +71,9 @@ const ChatComponent = () => {
     setStatus("Claude is thinking...");
 
     try {
-      const response = await fetch(`${API_URL}/api/chat`, {
+      // Use relative `/api` when API_URL is same-origin.
+      const endpoint = API_URL ? `${API_URL}/api/chat` : "/api/chat";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: input }),
