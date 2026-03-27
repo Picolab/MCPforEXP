@@ -592,10 +592,11 @@ async function listCommunities() {
  * @async
  * @function createCommunity
  * @param {string} communityName - The display name for the new community.
+ * @param {string} description - The description for the new community.
  * @returns {Promise<string>} The ECI of the newly created Community.
  * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
  */
-async function createCommunity(communityName) {
+async function createCommunity(communityName, description) {
   //Check if communityName already exists in manifold. If so, throw error to avoid duplicates.
   const communitiesResult = await listCommunities();
   const communities = communitiesResult || {}; // Fallback to empty object if null/undefined
@@ -617,6 +618,7 @@ async function createCommunity(communityName) {
   try {
     const response = await postFetchRequest(requestEndpoint, {
       name: communityName,
+      description: description
     });
 
     if (!response.ok) {
@@ -627,9 +629,8 @@ async function createCommunity(communityName) {
 
     const data = await response.json();
 
-    // TODO: check if getChildEciByName works for communities as well.
     for (let i = 0; i < 10; i++) {
-      const communityEci = await getChildEciByName(manifoldEci, communityName);
+      const communityEci = await getCommunityIDByName(communityName);
       if (communityEci) {
         console.log(communityEci);
         return communityEci;
@@ -642,6 +643,57 @@ async function createCommunity(communityName) {
   } catch (error) {
     console.error(`Error in createCommunity:`, error.message);
     throw error;
+  }
+}
+
+/**
+ * @async
+ * @function addThingToCommunity
+ * @param {*} thingName - The name of the thing in manifold
+ * @param {*} communityName - The name of the community in manifold
+ *
+ * This function, given the name of the thing being attached and the community to attach it to, attaches the thing to the community.
+ */
+async function addThingToCommunity(thingName, communityName) {
+  try {
+    const manifoldEci = await traverseHierarchy();
+    const picoID = await getPicoIDByName(thingName);
+    const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${manifoldEci}/manifold/add_thing_to_community`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {
+      communityPicoID: communityID,
+      thingPicoID: picoID,
+    });
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error in addThingToCommunity:", err);
+    throw err;
+  }
+}
+
+/**
+ * @async
+ * @function listThingsFromCommunity
+ * @param {*} communityName - The name of the community in the manifold.
+ */
+async function listThingsFromCommunity(communityName) {
+  try {
+    //const manifoldEci = await traverseHierarchy();
+    const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${communityID}/query/io.picolabs.community/things`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {});
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error in listThingsFromCommunity:", err);
+    throw err;
   }
 }
 
@@ -669,6 +721,24 @@ async function deleteCommunity(communityName) {
   return await response.json();
 }
 
+/**
+ * Resolves a community name to its picoID using the list of communities from the manifold.
+ * @async
+ * @function getCommunityIDByName
+ * @param {string} communityName - The name of the Community Pico.
+ * @returns {Promise<string>} The picoID (ECI) of the thing.
+ * @throws {Error} If the community is not found in the list of communities.
+ */
+async function getCommunityIDByName(communityName) {
+  const communities = await listCommunities();
+  for (const [picoID, communityData] of Object.entries(communities)) {
+    if (communityData.name === communityData) {
+      return picoID;
+    }
+  }
+  throw new Error(`Thing "${communityName}" not found`);
+}
+
 module.exports = {
   main,
   listThings,
@@ -685,5 +755,8 @@ module.exports = {
   getPicoIDByName,
   listCommunities,
   createCommunity,
-  deleteCommunity
+  addThingToCommunity,
+  deleteCommunity,
+  listThingsFromCommunity,
+  getCommunityIDByName
 };
