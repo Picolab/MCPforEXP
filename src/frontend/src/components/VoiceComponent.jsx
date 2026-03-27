@@ -3,62 +3,85 @@ import { useState, useRef } from "react";
 const VoiceInput = ({ onTranscript, disabled }) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+  const silenceTimerRef = useRef(null);
+  const finalTranscriptRef = useRef("");
 
-  const startListening = () => {
+  const startRecognition = () => {
     if (!("webkitSpeechRecognition" in window)) {
       alert("Speech recognition not supported in this browser");
       return;
     }
 
-    console.log("Starting speech recognition...");
     const recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = false; // important: finalize each phrase
     recognition.interimResults = true;
 
     recognition.onstart = () => {
-      console.log("Listening...");
       setIsListening(true);
+      finalTranscriptRef.current = "";
+      startSilenceTimer();
     };
 
     recognition.onresult = (event) => {
-      console.log(event);
-      let transcript = "";
-
+      let finalText = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
-
-        if (result.isFinal) {
-          transcript += result[0].transcript;
-        }
+        if (result.isFinal) finalText += result[0].transcript;
+      }
+      if (finalText) {
+        finalTranscriptRef.current += " " + finalText;
       }
 
-      if (transcript) {
-        console.log("FINAL:", transcript);
-        onTranscript(transcript);
-      }
+      // Reset timer whenever speech is detected
+      resetSilenceTimer();
     };
 
-    recognition.onerror = () => {
-      setIsListening(false);
+    recognition.onerror = (err) => {
+      console.error("Speech recognition error", err);
+      stopRecognition();
     };
 
     recognition.onend = () => {
-      setIsListening(false);
+      const message = finalTranscriptRef.current.trim();
+      if (message) {
+        onTranscript(message);
+        finalTranscriptRef.current = "";
+      }
+
+      // If still listening, restart automatically to keep capturing speech
+      if (isListening) startRecognition();
     };
 
     recognitionRef.current = recognition;
     recognition.start();
   };
 
-  const stopListening = () => {
-    recognitionRef.current?.stop();
+  const stopRecognition = () => {
     setIsListening(false);
+    if (recognitionRef.current) recognitionRef.current.stop();
+    clearSilenceTimer();
   };
 
   const toggleListening = () => {
-    console.log("Mic clicked");
-    if (isListening) stopListening();
-    else startListening();
+    if (isListening) stopRecognition();
+    else startRecognition();
+  };
+
+  // --- Silence timer ---
+  const startSilenceTimer = () => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      stopRecognition(); // triggers onend → sends transcript
+    }, 5000); // 5 seconds of silence
+  };
+
+  const resetSilenceTimer = () => startSilenceTimer();
+
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
   };
 
   return (
