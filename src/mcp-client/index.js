@@ -16,9 +16,7 @@ const {
   getManifoldContext,
   updateManifoldContext,
 } = require("../backend/llm/llm-context.js");
-const {
-  getToolsForSkills,
-} = require("../backend/skills-tool-bank.js");
+const { getToolsForSkills } = require("../backend/skills-tool-bank.js");
 
 class MCPClient extends EventEmitter {
   constructor() {
@@ -314,12 +312,12 @@ class MCPClient extends EventEmitter {
     return this.tools
       .filter((tool) => allowedNames.has(tool.toolSpec.name))
       .map((tool) => ({
-      toolSpec: {
-        name: tool.toolSpec.name,
-        description: tool.toolSpec.description,
-        inputSchema: { json: tool.toolSpec.inputSchema },
-      },
-    }));
+        toolSpec: {
+          name: tool.toolSpec.name,
+          description: tool.toolSpec.description,
+          inputSchema: { json: tool.toolSpec.inputSchema },
+        },
+      }));
   }
 
   /**
