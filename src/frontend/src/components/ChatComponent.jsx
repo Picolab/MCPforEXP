@@ -65,39 +65,59 @@ const ChatComponent = () => {
 
   const sendMessage = async (e, overridingText = null) => {
     if (e) e.preventDefault();
-
-    // Use the provided text OR the current state input
     const messageToSend = overridingText || input;
-
     if (!messageToSend.trim() || isLoading) return;
 
-    const userMessage = { role: "user", text: messageToSend };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput(""); // Clear the input field
+    // Add User Message
+    setMessages((prev) => [...prev, { role: "user", text: messageToSend }]);
+
+    // Add an empty Assistant message placeholder that we will "fill"
+    setMessages((prev) => [...prev, { role: "assistant", text: "" }]);
+
+    setInput("");
     setIsLoading(true);
-    setStatus("Claude is thinking...");
+    setStatus("Claude is typing...");
 
     try {
-      const endpoint = API_URL ? `${API_URL}/api/chat` : "/api/chat";
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: messageToSend }), // Use the same variable here
+        body: JSON.stringify({ message: messageToSend }),
       });
 
-      const data = await response.json();
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: data.success ? data.answer : `Error: ${data.error}`,
-        },
-      ]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantText = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.text) {
+                assistantText += data.text;
+
+                // Update ONLY the last message in the list with the new text
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1].text = assistantText;
+                  return updated;
+                });
+              }
+            } catch (e) {
+              console.error("Error parsing stream", e);
+            }
+          }
+        }
+      }
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Failed to connect to backend." },
-      ]);
+      // Handle error...
     } finally {
       setIsLoading(false);
       setStatus("");
