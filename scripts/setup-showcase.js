@@ -1,9 +1,13 @@
-const { createThing } = require("../src/backend/api-wrapper");
+const {
+  createThing,
+  addNote,
+  installSkillForThing,
+  setSquareTag,
+  updateOwnerInfo,
+} = require("../src/backend/api-wrapper");
 const { update_box_info } = require("../src/backend/utility/ui-utility");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
-
-const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 async function main() {
   console.log("Making showcase setup.");
@@ -20,6 +24,20 @@ async function main() {
   } catch {}
   await update_box_info("Backpack", "405", "600", "110", "");
   await update_box_info("Car", "595", "600", "110", "");
+  await installSkillForThing("Backpack", "safeandmine");
+  await installSkillForThing("Car", "journal");
+  await addNote("Car", "Oil change 9/15/2025", "Price: $63. Mileage: 103451");
+  await addNote("Car", "Emissions 1/20/2026", "Price: $25. Mileage: 106203");
+  await setSquareTag("Backpack", "AAABBB", "sqtg");
+  await updateOwnerInfo("Backpack", {
+    name: "Charles Butler",
+    email: "c@picolabs.org",
+    phone: "888-888-8888",
+    message: "You found my backpack! Please text me.",
+    shareName: true,
+    sharePhone: true,
+    shareEmail: false,
+  });
   console.log("Finished!");
 }
 
