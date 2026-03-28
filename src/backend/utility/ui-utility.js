@@ -88,16 +88,17 @@ async function get_box_info(name) {
  * @returns {Promise<object>}
  */
 async function update_box_info(
-  name,
+  currentName,
   x = "",
   y = "",
   width = "",
   height = "",
   backgroundColor = "",
+  name = "",
 ) {
   const rootECI = await getRootECI();
 
-  const picoECI = await findPicoBFS(name, rootECI);
+  const picoECI = await findPicoBFS(currentName, rootECI);
   if (picoECI == null) throw new Error(`Could not find named pico.`);
 
   const requestEndpoint = `/c/${picoECI}/event-wait/engine_ui/box`;
@@ -107,6 +108,7 @@ async function update_box_info(
     width,
     height,
     backgroundColor,
+    name,
   });
   if (!response.ok) {
     throw new Error(
