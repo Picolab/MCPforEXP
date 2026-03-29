@@ -249,6 +249,129 @@ async function manifold_installSkill(thingName, skillName, id) {
   }
 }
 
+/**
+ * Retrieves all "Communities" currently managed by the Manifold Pico.
+ * @async
+ * @function manifold_getCommunities
+ * @param {string|number} id - Correlation ID for the request.
+ * @returns {Promise<KrlResponse>} Standard envelope containing the map of things.
+ */
+async function manifold_getCommunities(id) {
+  try {
+    const data = await api.listCommunities();
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "query", domain: "manifold" },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
+/**
+ * @async
+ * @function manifold_create_community
+ * Creates a new thing pico and waits for it to be initialized.
+ * Uses createThing internally which waits for completion and returns the thing's ECI.
+ * @param {string} communityName 
+ */
+async function manifold_create_community(communityName, id) {
+  try {
+    const communityEci = await api.createCommunity(communityName);
+    return okResponse({
+      id,
+      data: { communityEci },
+      meta: { kind: "event", type: "create_community", httpStatus: 200 },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
+  }
+}
+
+/**
+ * @async
+ * @function manifold_add_thing_to_community
+ * @param {string} thingName 
+ * @param {string} communityName 
+ * @param {string|number} id 
+ */
+async function manifold_add_thing_to_community(thingName, communityName, id) {
+  try {
+    const data = await api.addThingToCommunity(thingName, communityName);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "event", type: "add_thing_to_community", httpStatus: 200 },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
+  }
+}
+
+/**
+ * @async
+ * @function manifold_get_community_things
+ * @param {string} communityName 
+ * @param {string|number} id 
+ */
+async function manifold_get_community_things(communityName, id) {
+  try {
+    const data = await api.listThingsFromCommunity(communityName);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "event", type: "get_community_tjomgs", httpStatus: 200 },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
+  }
+}
+
+/**
+ * @async
+ * @function manifold_get_community_description
+ * @param {string} communityName 
+ * @param {string|number} id 
+ */
+async function manifold_get_community_description(communityName, id) {
+  try {
+    const data = await api.getCommunityDescription(communityName);
+    return okResponse({
+      id,
+      data,
+      meta: { kind: "event", type: "get_community_description", httpStatus: 200 },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
+  }
+}
+
+/**
+ * Removes a Community Pico by name and its associated subscriptions from Manifold.
+ * @async
+ * @param {string} communityName - The name of the Thing Pico to remove.
+ * @param {string|number} id - Correlation ID.
+ * @returns {Promise<KrlResponse>} Standard KRL envelope.
+ */
+async function manifold_remove_community(communityName, id) {
+  try {
+    const data = await api.deleteCommunity(communityName);
+    return okResponse({
+      id,
+      data,
+      meta: {
+        kind: "event",
+        domain: "manifold",
+        type: "remove_community", // TODO: check meta type here, ensure it works fine.
+        httpStatus: 200,
+      },
+    });
+  } catch (error) {
+    return errResponse({ id, code: "ENGINE_ERROR", message: error.message });
+  }
+}
+
 module.exports = {
   manifold_getThings,
   manifold_create_thing,
@@ -261,4 +384,10 @@ module.exports = {
   updateOwnerInfo,
   addNote,
   getNote,
+  manifold_getCommunities,
+  manifold_create_community,
+  manifold_add_thing_to_community,
+  manifold_get_community_things,
+  manifold_get_community_description,
+  manifold_remove_community
 };

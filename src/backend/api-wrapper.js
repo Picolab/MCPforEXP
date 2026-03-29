@@ -649,8 +649,8 @@ async function createCommunity(communityName, description) {
 /**
  * @async
  * @function addThingToCommunity
- * @param {*} thingName - The name of the thing in manifold
- * @param {*} communityName - The name of the community in manifold
+ * @param {string} thingName - The name of the thing in manifold
+ * @param {string} communityName - The name of the community in manifold
  *
  * This function, given the name of the thing being attached and the community to attach it to, attaches the thing to the community.
  */
@@ -678,7 +678,7 @@ async function addThingToCommunity(thingName, communityName) {
 /**
  * @async
  * @function listThingsFromCommunity
- * @param {*} communityName - The name of the community in the manifold.
+ * @param {string} communityName - The name of the community in the manifold.
  */
 async function listThingsFromCommunity(communityName) {
   try {
@@ -693,6 +693,28 @@ async function listThingsFromCommunity(communityName) {
     return data;
   } catch (err) {
     console.error("Error in listThingsFromCommunity:", err);
+    throw err;
+  }
+}
+
+/**
+ * @async
+ * @function getCommunityDescription
+ * @param {string} communityName - The name of the community in the manifold.
+ */
+async function getCommunityDescription(communityName) {
+  try {
+    //const manifoldEci = await traverseHierarchy();
+    const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${communityID}/query/io.picolabs.community/description`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {});
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error in getCommunityDescription:", err);
     throw err;
   }
 }
@@ -756,7 +778,8 @@ module.exports = {
   listCommunities,
   createCommunity,
   addThingToCommunity,
-  deleteCommunity,
   listThingsFromCommunity,
+  getCommunityDescription,
+  deleteCommunity,
   getCommunityIDByName
 };
