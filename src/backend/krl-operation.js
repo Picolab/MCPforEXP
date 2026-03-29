@@ -321,7 +321,7 @@ async function manifold_get_community_things(communityName, id) {
     return okResponse({
       id,
       data,
-      meta: { kind: "event", type: "get_community_tjomgs", httpStatus: 200 },
+      meta: { kind: "event", type: "get_community_things", httpStatus: 200 },
     });
   } catch (error) {
     return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });

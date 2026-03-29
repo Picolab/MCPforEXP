@@ -34,6 +34,12 @@ const {
   updateOwnerInfo,
   addNote,
   getNote,
+  manifold_getCommunities,
+  manifold_create_community,
+  manifold_add_thing_to_community,
+  manifold_get_community_things,
+  manifold_get_community_description,
+  manifold_remove_community
 } = require("../krl-operation.js");
 
 function asJsonContent(obj) {
