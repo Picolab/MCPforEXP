@@ -339,6 +339,7 @@ const manifold_create_community = tool({
   properties: {
     ...TOOL_COMMON_PROPS,
     communityName: { type: "string", description: "Name for the new community pico." },
+    description: { type: string, description: "Description for the new community pico."}
   },
   required: ["communityName"],
   outputDescription:

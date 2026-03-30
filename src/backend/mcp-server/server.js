@@ -203,6 +203,65 @@ async function main() {
     toolHandler(({ thingName, title, id }) => getNote(thingName, title, id)),
   );
 
+  server.tool(
+    "manifold_getCommunities",
+    "List all digital communites managed by Manifold. No arguments required.",
+    { id: z.string().optional() },
+    toolHandler(({ id }) => manifold_getCommunities(id)),
+  );
+
+  server.tool(
+    "manifold_create_community",
+    "Create a new digital community Pico. Provide a descriptive name and a separate description.",
+    {
+      communityName: z.string().describe("Descriptive name (e.g. 'School Items')"),
+      description: z.string().describe("Description for the new community (e.g. 'supplies and wearables intended to be used at school.'"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ communityName, description, id }) => manifold_create_community(communityName, description, id)),
+  );
+
+  server.tool(
+    "manifold_add_thing_to_community",
+    "Add a thing Pico to a community Pico of your choice. Please provide the name of both the thing Pico and community Pico in question.",
+    {
+      thingName: z.string().describe("The name of the thing Pico that will be added to the community"),
+      communityName: z.string().describe("The name of the community Pico"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ thingName, communityName, id }) => manifold_add_thing_to_community(thingName, communityName, id)),
+  );
+
+  server.tool(
+    "manifold_get_community_things",
+    "Get a list of all the thing Picos attached a community Pico. Please provide the name of the community Pico in question.",
+    {
+      communityName: z.string().describe("The name of the community Pico"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ communityName, id }) => manifold_get_community_things(communityName, id)),
+  );
+
+  server.tool(
+    "manifold_get_community_description",
+    "Get a list of the description attached to a community Pico. Please provide the name of the community Pico in question.",
+    {
+      communityName: z.string().describe("The name of the community Pico"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ communityName, id }) => manifold_get_community_description(communityName, id)),
+  );
+
+  server.tool(
+    "manifold_remove_community",
+    "Delete an existing digital community Pico. Please provide the name of the community Pico in question.",
+    {
+      communityName: z.string().describe("The name of the community Pico"),
+      id: z.string().optional(),
+    },
+    toolHandler(({ communityName, id }) => manifold_remove_community(communityName, id))
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

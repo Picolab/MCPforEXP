@@ -276,9 +276,9 @@ async function manifold_getCommunities(id) {
  * Uses createThing internally which waits for completion and returns the thing's ECI.
  * @param {string} communityName 
  */
-async function manifold_create_community(communityName, id) {
+async function manifold_create_community(communityName, description, id) {
   try {
-    const communityEci = await api.createCommunity(communityName);
+    const communityEci = await api.createCommunity(communityName, description);
     return okResponse({
       id,
       data: { communityEci },
