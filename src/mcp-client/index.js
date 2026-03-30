@@ -228,7 +228,7 @@ class MCPClient extends EventEmitter {
     // 1. Fetch history and the system prompt
     const fullHistory = await getManifoldContext();
     const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
-    const systemPrompt = this.getSystemPrompt("v0.1.0"); // Matches your file versioning
+    const systemPrompt = this.getSystemPrompt("v0.2.0"); // Matches your file versioning
 
     // 2. Format history for Bedrock
     let messages = [...history, { role: "user", content: [{ text: query }] }];
@@ -371,7 +371,7 @@ class MCPClient extends EventEmitter {
     }
   }
 
-  getSystemPrompt(version = "v0.1.0") {
+  getSystemPrompt(version = "v0.2.0") {
     try {
       // Adjusted path to look for the 'prompts' folder at your project root
       const promptPath = path.join(
