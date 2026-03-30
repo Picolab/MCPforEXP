@@ -18,7 +18,10 @@ const ChatComponent = () => {
 
   const handleTranscript = (text) => {
     if (!text.trim()) return;
-    setInput((prev) => (prev ? prev + " " : "") + text);
+    setInput(text);
+    setTimeout(() => {
+      sendMessage(null, text);
+    }, 2000);
   };
 
   useEffect(() => {
@@ -60,23 +63,26 @@ const ChatComponent = () => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, status]);
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (e, overridingText = null) => {
+    if (e) e.preventDefault();
 
-    const userMessage = { role: "user", text: input };
+    // Use the provided text OR the current state input
+    const messageToSend = overridingText || input;
+
+    if (!messageToSend.trim() || isLoading) return;
+
+    const userMessage = { role: "user", text: messageToSend };
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    setInput(""); // Clear the input field
     setIsLoading(true);
     setStatus("Claude is thinking...");
 
     try {
-      // Use relative `/api` when API_URL is same-origin.
       const endpoint = API_URL ? `${API_URL}/api/chat` : "/api/chat";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: messageToSend }), // Use the same variable here
       });
 
       const data = await response.json();
@@ -175,6 +181,12 @@ const ChatComponent = () => {
             className="w-full bg-gray-100 text-gray-800 text-sm rounded-full px-5 py-3 pr-12 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(e);
+              }
+            }}
             placeholder="Message Manifold..."
             disabled={isLoading}
             rows={1}
