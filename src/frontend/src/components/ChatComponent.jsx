@@ -68,11 +68,12 @@ const ChatComponent = () => {
     const messageToSend = overridingText || input;
     if (!messageToSend.trim() || isLoading) return;
 
-    // Add User Message
-    setMessages((prev) => [...prev, { role: "user", text: messageToSend }]);
-
-    // Add an empty Assistant message placeholder that we will "fill"
-    setMessages((prev) => [...prev, { role: "assistant", text: "" }]);
+    // 1. Add User Message AND an empty Assistant placeholder immediately
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: messageToSend },
+      { role: "assistant", text: "" }, // This is the bubble that will "grow"
+    ]);
 
     setInput("");
     setIsLoading(true);
@@ -85,39 +86,46 @@ const ChatComponent = () => {
         body: JSON.stringify({ message: messageToSend }),
       });
 
+      if (!response.ok) throw new Error("Network response was not ok");
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let assistantText = "";
+      let accumulatedText = "";
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
+        const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split("\n");
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
-              const data = JSON.parse(line.slice(6));
-              if (data.text) {
-                assistantText += data.text;
+              const parsed = JSON.parse(line.slice(6));
+              if (parsed.text) {
+                accumulatedText += parsed.text;
 
-                // Update ONLY the last message in the list with the new text
+                // 2. Update ONLY the last message (the placeholder)
                 setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1].text = assistantText;
-                  return updated;
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1].text = accumulatedText;
+                  return newMessages;
                 });
               }
             } catch (e) {
-              console.error("Error parsing stream", e);
+              console.error("Stream parsing error", e);
             }
           }
         }
       }
     } catch (err) {
-      // Handle error...
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1].text =
+          "Connection error. Please try again.";
+        return newMessages;
+      });
     } finally {
       setIsLoading(false);
       setStatus("");
@@ -158,16 +166,22 @@ const ChatComponent = () => {
               msg.role === "user" ? "justify-end" : "justify-start"
             }`}
           >
+            {/* Inside your messages.map */}
             <div
-              className={`max-w-[85%] px-4 py-2.5 shadow-sm text-left ${
+              className={`max-w-[85%] px-4 py-2.5 shadow-sm text-left transition-all duration-200 ${
                 msg.role === "user"
                   ? "bg-blue-600 text-white rounded-2xl rounded-tr-none"
-                  : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none"
+                  : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none min-h-[44px] min-w-[50px]"
               }`}
             >
-              <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
-                {msg.text}
-              </p>
+              {/* If text is empty and it's an assistant message, show a tiny pulse or cursor */}
+              {msg.text === "" && msg.role === "assistant" ? (
+                <span className="inline-block w-2 h-4 bg-gray-300 animate-pulse rounded-sm"></span>
+              ) : (
+                <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">
+                  {msg.text}
+                </p>
+              )}
             </div>
           </div>
         ))}
