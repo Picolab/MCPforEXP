@@ -36,7 +36,7 @@ class MCPClient extends EventEmitter {
      * Example values: ["manifold_core", "safeandmine", "journal"]
      */
     this.currentSkills = ["manifold_core", "safeandmine"];
-    this.modelId = "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
+    this.modelId = "anthropic.claude-sonnet-4-5-20250929-v1:0";
   }
 
   async refreshTools() {
