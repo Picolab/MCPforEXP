@@ -76,7 +76,7 @@ const ChatComponent = () => {
 
     setInput("");
     setIsLoading(true);
-    setStatus("Claude is typing...");
+    setStatus("Manny is typing...");
 
     try {
       const response = await fetch(`${API_URL}/api/chat`, {
