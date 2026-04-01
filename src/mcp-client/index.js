@@ -1,6 +1,7 @@
 const {
   BedrockRuntimeClient,
   ConverseCommand,
+  ConverseStreamCommand,
 } = require("@aws-sdk/client-bedrock-runtime");
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 const {
@@ -188,13 +189,12 @@ class MCPClient extends EventEmitter {
     }
   }
 
-  async processQuery(query) {
-    // 1. Fetch history and the system prompt
+  // 1. Add onChunk as a parameter so the Proxy can receive the stream
+  async processQuery(query, onChunk) {
     const fullHistory = await getManifoldContext();
     const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
-    const systemPrompt = this.getSystemPrompt("v0.1.0"); // Matches your file versioning
+    const systemPrompt = this.getSystemPrompt("v0.1.0");
 
-    // 2. Format history for Bedrock
     let messages = [...history, { role: "user", content: [{ text: query }] }];
     if (messages.length > 0 && messages[0].role !== "user") {
       messages.shift();
@@ -205,39 +205,84 @@ class MCPClient extends EventEmitter {
       const maxLoops = 5;
       let assistantResponse = "";
 
-      let command = new ConverseCommand({
-        modelId: this.modelId,
-        system: [{ text: systemPrompt }],
-        messages,
-        toolConfig: { tools: this.prepareToolsForBedrock() },
-      });
-
       while (loopCount < maxLoops) {
-        // Notify UI: We are waiting for the LLM
         this.emit("status", { message: "Manny is thinking..." });
 
+        const command = new ConverseStreamCommand({
+          modelId: this.modelId,
+          system: [{ text: systemPrompt }],
+          messages,
+          toolConfig: { tools: this.prepareToolsForBedrock() },
+        });
+
         const response = await this.bedrock.send(command);
-        const outputMessage = response.output?.message;
-        if (!outputMessage) break;
 
-        messages.push(outputMessage);
-        const toolCalls = outputMessage.content.filter((c) => c.toolUse);
-        const textParts = outputMessage.content
-          .filter((c) => c.text)
-          .map((c) => c.text);
+        let currentToolUse = null;
+        let streamedText = "";
+        let toolCallsFound = [];
 
-        if (textParts.length > 0) {
-          assistantResponse +=
-            (assistantResponse ? "\n" : "") + textParts.join("\n");
+        // --- STREAM PROCESSING LOOP ---
+        for await (const chunk of response.stream) {
+          // Handle Text
+          if (chunk.contentBlockDelta?.delta?.text) {
+            const text = chunk.contentBlockDelta.delta.text;
+            streamedText += text;
+            assistantResponse += text;
+            if (onChunk) onChunk(text); // Send to Express/Proxy
+          }
+
+          // Handle Tool Use Start
+          if (chunk.contentBlockStart?.start?.toolUse) {
+            currentToolUse = {
+              ...chunk.contentBlockStart.start.toolUse,
+              input: "",
+            };
+          }
+
+          // Handle Tool Input (Deltas)
+          if (chunk.contentBlockDelta?.delta?.toolUse?.input) {
+            currentToolUse.input += chunk.contentBlockDelta.delta.toolUse.input;
+          }
+
+          // Handle Tool Use End/Complete
+          if (chunk.contentBlockStop) {
+            if (currentToolUse) {
+              toolCallsFound.push(currentToolUse);
+              currentToolUse = null;
+            }
+          }
         }
 
-        if (toolCalls.length === 0) break;
+        // --- RECONSTRUCT MESSAGE FOR HISTORY ---
+        // Bedrock needs the EXACT response back to continue the loop
+        const assistantMessageContent = [];
+        if (streamedText) assistantMessageContent.push({ text: streamedText });
 
+        toolCallsFound.forEach((tc) => {
+          assistantMessageContent.push({
+            toolUse: {
+              toolUseId: tc.toolUseId,
+              name: tc.name,
+              input: JSON.parse(tc.input || "{}"),
+            },
+          });
+        });
+
+        const outputMessage = {
+          role: "assistant",
+          content: assistantMessageContent,
+        };
+        messages.push(outputMessage);
+
+        // If no tools were called, we are done
+        if (toolCallsFound.length === 0) break;
+
+        // --- EXECUTE TOOLS ---
         const toolResults = [];
-        for (const content of toolCalls) {
-          const { name, input, toolUseId } = content.toolUse;
+        for (const toolCall of toolCallsFound) {
+          const { name, toolUseId } = toolCall;
+          const input = JSON.parse(toolCall.input || "{}");
 
-          // CRITICAL FOR UI: Tell the user EXACTLY what tool is running
           this.emit("tool-use", { name, input });
 
           try {
@@ -249,18 +294,13 @@ class MCPClient extends EventEmitter {
                   .join("\n")
               : JSON.stringify(result);
 
-            // If we just derived Skills for a Thing, update currentSkills immediately
-            // so subsequent tool selection in this same query uses the correct subset.
+            // Handle Skill Refresh logic
             if (name === "manifold_getThingSkills") {
               try {
                 const parsed = JSON.parse(text);
                 const skills = parsed?.data?.skills;
-                if (Array.isArray(skills) && skills.length > 0) {
-                  this.setCurrentSkills(skills);
-                }
-              } catch (_) {
-                // Ignore parsing errors; tool result is still passed back to the LLM
-              }
+                if (Array.isArray(skills)) this.setCurrentSkills(skills);
+              } catch (_) {}
             }
 
             toolResults.push({
@@ -281,16 +321,12 @@ class MCPClient extends EventEmitter {
           }
         }
 
+        // Push results and loop
         messages.push({ role: "user", content: toolResults });
-        command = new ConverseCommand({
-          modelId: this.modelId,
-          system: [{ text: systemPrompt }],
-          messages,
-          toolConfig: { tools: this.prepareToolsForBedrock() },
-        });
         loopCount++;
       }
 
+      // Update the persistent database/file context
       await updateManifoldContext([
         ...history,
         { role: "user", content: [{ text: query }] },
@@ -299,7 +335,8 @@ class MCPClient extends EventEmitter {
 
       return assistantResponse;
     } catch (e) {
-      throw e; // Let the Express API handle the error response
+      console.error("Critical Error in processQuery:", e);
+      throw e;
     }
   }
 
