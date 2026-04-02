@@ -24,30 +24,10 @@ const client = new MCPClient();
 
 // 2. Connect to the MCP Server immediately on startup
 const MCP_SERVER_PATH = path.join(__dirname, "../backend/mcp-server/server.js");
-
-async function ensureMcpConnected() {
-  // First connection must seed the serverScriptPath; subsequent calls can use ensureConnected().
-  if (!client.serverScriptPath) {
-    await client.connectToServer(MCP_SERVER_PATH);
-    return;
-  }
-  if (typeof client.ensureConnected === "function") {
-    await client.ensureConnected();
-    return;
-  }
-  // Back-compat
-  await client.connectToServer(MCP_SERVER_PATH);
-}
-
-(async () => {
-  try {
-    // Ensure the first request doesn't race a still-connecting MCP transport.
-    await ensureMcpConnected();
-    console.error("✅ Connected to MCP Server");
-  } catch (err) {
-    console.error("❌ MCP Connection Failed:", err);
-  }
-})();
+client
+  .connectToServer(MCP_SERVER_PATH)
+  .then(() => console.error("✅ Connected to MCP Server"))
+  .catch((err) => console.error("❌ MCP Connection Failed:", err));
 
 // 3. Setup Socket.io Event Forwarding
 io.on("connection", (socket) => {
@@ -78,7 +58,6 @@ app.post("/api/chat", async (req, res) => {
   }
 
   try {
-    await ensureMcpConnected();
     // This triggers the agentic loop we built
     const result = await client.processQuery(message);
     res.json({ success: true, answer: result });
@@ -89,6 +68,7 @@ app.post("/api/chat", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
 server.listen(PORT, "0.0.0.0", () => {
   console.error(`🚀 API Proxy & Socket server running on port ${PORT}`);
 });

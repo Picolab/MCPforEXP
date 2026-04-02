@@ -160,15 +160,28 @@ async function main() {
     "Update the owner information for a thing pico.",
     {
       thingName: z.string().describe("The name of the thing to update"),
-      ownerInfo: z.object({
-        name: z.string().describe("Owner's name"),
-        email: z.string().describe("Owner's email"),
-        phone: z.string().describe("Owner's phone number"),
-        message: z.string().describe("A message from the owner"),
-        shareName: z.boolean().describe("Whether to share the owner's name"),
-        shareEmail: z.boolean().describe("Whether to share the owner's email"),
-        sharePhone: z.boolean().describe("Whether to share the owner's phone"),
-      }),
+      ownerInfo: z
+        .object({
+          name: z.string().describe("Owner's name").optional(),
+          email: z.string().describe("Owner's email").optional(),
+          phone: z.string().describe("Owner's phone number").optional(),
+          message: z.string().describe("A message from the owner").optional(),
+          shareName: z
+            .boolean()
+            .describe("Whether to share the owner's name")
+            .optional(),
+          shareEmail: z
+            .boolean()
+            .describe("Whether to share the owner's email")
+            .optional(),
+          sharePhone: z
+            .boolean()
+            .describe("Whether to share the owner's phone")
+            .optional(),
+        })
+        .describe(
+          "Object containing info to update. Null fields will signal that the field's previously stored info should be used.",
+        ),
       id: z.string().optional(),
     },
     toolHandler(({ thingName, ownerInfo, id }) =>
@@ -197,7 +210,11 @@ async function main() {
       thingName: z
         .string()
         .describe("The name of the thing to get a note from"),
-      title: z.string().describe("The title of the note to retrieve"),
+      title: z
+        .string()
+        .describe(
+          "The title of the note to retrieve. If given an empty string, all journal entries will be returned (convenient for searching).",
+        ),
       id: z.string().optional(),
     },
     toolHandler(({ thingName, title, id }) => getNote(thingName, title, id)),

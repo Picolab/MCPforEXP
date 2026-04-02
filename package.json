@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "setup": "cd scripts && bash ./setup.sh",
+    "setup:showcase": "cd scripts && bash ./setup.sh && node setup-showcase.js",
     "teardown": "cd scripts && bash ./teardown.sh",
     "test": "jest",
     "dev": "cd src/frontend && npm run dev",

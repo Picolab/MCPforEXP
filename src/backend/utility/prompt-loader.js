@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function getSystemPrompt(version = 'v0.1.0') {
+export function getSystemPrompt(version = 'v0.2.0') {
     // Navigate from src/utils/ up to prompts/
     const filePath = path.join(__dirname, '../../prompts', `manifold_${version}.md`);
     

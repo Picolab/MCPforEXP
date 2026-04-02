@@ -180,7 +180,8 @@ const manifold_getThingSkills = tool({
     id: TOOL_COMMON_PROPS.id,
     thingName: {
       type: "string",
-      description: "The name of the Thing pico to inspect for installed Skills.",
+      description:
+        "The name of the Thing pico to inspect for installed Skills.",
     },
   },
   required: ["thingName"],
