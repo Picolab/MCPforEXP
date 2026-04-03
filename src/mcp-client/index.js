@@ -1,6 +1,5 @@
 const {
   BedrockRuntimeClient,
-  ConverseCommand,
   ConverseStreamCommand,
 } = require("@aws-sdk/client-bedrock-runtime");
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
@@ -226,6 +225,7 @@ class MCPClient extends EventEmitter {
           // Handle Text
           if (chunk.contentBlockDelta?.delta?.text) {
             const text = chunk.contentBlockDelta.delta.text;
+            console.log("STREAMING CHUNK:", text); // <--- Add this for debugging
             streamedText += text;
             assistantResponse += text;
             if (onChunk) onChunk(text); // Send to Express/Proxy

@@ -153,7 +153,7 @@ const ChatComponent = () => {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <p className="text-sm italic text-center px-12">
-              Ready for your Manifold queries. Try asking "what things do I
+              Ready for your Manifold queries. Try asking, "What things do I
               have?"
             </p>
           </div>
