@@ -544,6 +544,223 @@ async function getPicoIDByName(thingName) {
   throw new Error(`Thing "${thingName}" not found`);
 }
 
+/**
+ * Automatically determines the Manifold Pico and retrieves a detailed map of all it's "Communities".
+ * @async
+ * @function listCommunities
+ * @returns {Promise<Object<string, Object>>} A map where keys are Pico IDs and values are metadata objects:
+ * {
+    "{picoID}": {
+      "Rx_role": manifold pico's subscription role,
+      "Tx_role": thing's subscription role,
+      "Id": ID of the manifold-thing subscription,
+      "Tx": manifold's subscription ECI,
+      "Rx": thing's subscription ECI,
+      "name": user-input name string,
+      "subID": ID of the manifold-thing subscription,
+      "picoID": thing's #system #self ECI,
+      "color": color in the pico-engine UI
+      },
+    }
+ * }
+ * @throws {Error} If the engine query fails.
+ */
+async function listCommunities() {
+  try {
+    //Get the manifold channel ECI by traversing the pico hierarchy
+    const manifold_eci = await traverseHierarchy();
+
+    const requestEndpoint = `/c/${manifold_eci}/query/io.picolabs.manifold_pico/getCommunities`;
+    const response = await postFetchRequest(requestEndpoint, {});
+
+    if (!response.ok) {
+      throw new Error(`${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(data);
+    return data || {};
+  } catch (error) {
+    console.error("Fetch error:", error);
+    return {};
+  }
+}
+
+/**
+ * Triggers the creation of a new "Community" Pico within the Manifold system.
+ * Uses an event-wait pattern and polls for discovery by name.
+ * @async
+ * @function createCommunity
+ * @param {string} communityName - The display name for the new community.
+ * @param {string} description - The description for the new community.
+ * @returns {Promise<string>} The ECI of the newly created Community.
+ * @throws {Error} If the timeout (10s) is reached before the Pico appears in the engine.
+ */
+async function createCommunity(communityName, description) {
+  //Check if communityName already exists in manifold. If so, throw error to avoid duplicates.
+  const communitiesResult = await listCommunities();
+  const communities = communitiesResult || {}; // Fallback to empty object if null/undefined
+
+  for (const [picoID, communityData] of Object.entries(things)) {
+    if (communityData && communityData.name === communityData) {
+      throw new Error(`Thing with name "${communityName}" already exists`);
+    }
+  }
+
+  const manifoldEci = await traverseHierarchy();
+  /*if (!manifoldEci) {
+    throw new Error("Could not find Manifold ECI. TraverseHierarchy failed.");
+  }*/
+
+  console.log("traverseHierarchy result in createCommunity:", manifoldEci);
+  const requestEndpoint = `/c/${manifoldEci}/event-wait/manifold/new_community`;
+
+  try {
+    const response = await postFetchRequest(requestEndpoint, {
+      name: communityName,
+      description: description
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP Error (${response.status}): ${await response.text()}`,
+      );
+    }
+
+    const data = await response.json();
+
+    for (let i = 0; i < 10; i++) {
+      const communityEci = await getCommunityIDByName(communityName);
+      if (communityEci) {
+        console.log(communityEci);
+        return communityEci;
+      }
+      process.stdout.write(".");
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    throw new Error(`Timed out waiting for Pico "${communityName}" to appear.`);
+  } catch (error) {
+    console.error(`Error in createCommunity:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * @async
+ * @function addThingToCommunity
+ * @param {string} thingName - The name of the thing in manifold
+ * @param {string} communityName - The name of the community in manifold
+ *
+ * This function, given the name of the thing being attached and the community to attach it to, attaches the thing to the community.
+ */
+async function addThingToCommunity(thingName, communityName) {
+  try {
+    const manifoldEci = await traverseHierarchy();
+    const picoID = await getPicoIDByName(thingName);
+    const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${manifoldEci}/manifold/add_thing_to_community`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {
+      communityPicoID: communityID,
+      thingPicoID: picoID,
+    });
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error in addThingToCommunity:", err);
+    throw err;
+  }
+}
+
+/**
+ * @async
+ * @function listThingsFromCommunity
+ * @param {string} communityName - The name of the community in the manifold.
+ */
+async function listThingsFromCommunity(communityName) {
+  try {
+    //const manifoldEci = await traverseHierarchy();
+    const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${communityID}/query/io.picolabs.community/things`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {});
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error in listThingsFromCommunity:", err);
+    throw err;
+  }
+}
+
+/**
+ * @async
+ * @function getCommunityDescription
+ * @param {string} communityName - The name of the community in the manifold.
+ */
+async function getCommunityDescription(communityName) {
+  try {
+    //const manifoldEci = await traverseHierarchy();
+    const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${communityID}/query/io.picolabs.community/description`;
+
+    // Send API Request
+    const response = await postFetchRequest(requestEndpoint, {});
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Error in getCommunityDescription:", err);
+    throw err;
+  }
+}
+
+/**
+ * Removes a Community Pico by its name.
+ * @async
+ * @function deleteCommunity
+ * @param {string} communityName - The name of the Community Pico to remove.
+ * @returns {Promise<Object>} The engine's event response.
+ * @throws {Error} If the community is not found or if the engine request fails.
+ */
+async function deleteCommunity(communityName) {
+  const picoID = await getPicoIDByName(communityName);
+
+  const eci = await traverseHierarchy();
+  const requestEndpoint = `/c/${eci}/event-wait/manifold/remove_community`;
+  const response = await postFetchRequest(requestEndpoint, { picoID });
+
+  if (!response.ok) {
+    throw new Error(
+      `HTTP Error (${response.status}): ${await response.text()}`,
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Resolves a community name to its picoID using the list of communities from the manifold.
+ * @async
+ * @function getCommunityIDByName
+ * @param {string} communityName - The name of the Community Pico.
+ * @returns {Promise<string>} The picoID (ECI) of the thing.
+ * @throws {Error} If the community is not found in the list of communities.
+ */
+async function getCommunityIDByName(communityName) {
+  const communities = await listCommunities();
+  for (const [picoID, communityData] of Object.entries(communities)) {
+    if (communityData.name === communityData) {
+      return picoID;
+    }
+  }
+  throw new Error(`Thing "${communityName}" not found`);
+}
+
 module.exports = {
   main,
   listThings,
@@ -558,4 +775,11 @@ module.exports = {
   deleteThing,
   manifold_change_thing_name,
   getPicoIDByName,
+  listCommunities,
+  createCommunity,
+  addThingToCommunity,
+  listThingsFromCommunity,
+  getCommunityDescription,
+  deleteCommunity,
+  getCommunityIDByName
 };
