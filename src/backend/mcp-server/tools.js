@@ -331,7 +331,7 @@ const manifold_getCommunities = tool({
   required: [],
   outputDescription:
     "Returns map of community picoIDs to community objects (name, subID, picoID, color, etc.)",
-})
+});
 
 const manifold_create_community = tool({
   name: "manifold_create_community",
@@ -339,13 +339,19 @@ const manifold_create_community = tool({
   description: "KRL event: manifold/new_community (attrs: name)",
   properties: {
     ...TOOL_COMMON_PROPS,
-    communityName: { type: "string", description: "Name for the new community pico." },
-    description: { type: string, description: "Description for the new community pico."}
+    communityName: {
+      type: "string",
+      description: "Name for the new community pico.",
+    },
+    description: {
+      type: "string",
+      description: "Description for the new community pico.",
+    },
   },
   required: ["communityName"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
-})
+});
 
 const manifold_add_thing_to_community = tool({
   name: "manifold_add_thing_to_community",
@@ -355,7 +361,7 @@ const manifold_add_thing_to_community = tool({
     id: TOOL_COMMON_PROPS.id,
     thingName: {
       type: "string",
-      description: "The name of the thing that is added to the community."
+      description: "The name of the thing that is added to the community.",
     },
     communityName: {
       type: "string",
@@ -365,7 +371,7 @@ const manifold_add_thing_to_community = tool({
   required: ["thingName", "communityName"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
-})
+});
 
 const manifold_get_community_things = tool({
   name: "manifold_get_community_things",
@@ -373,12 +379,16 @@ const manifold_get_community_things = tool({
   description: "List all Things that are attached to a Community",
   properties: {
     ...TOOL_COMMON_PROPS,
-    communityName: { type: "string", description: "Name for the Community pico that Things will be pulled from." },
+    communityName: {
+      type: "string",
+      description:
+        "Name for the Community pico that Things will be pulled from.",
+    },
   },
   required: ["communityName"],
   outputDescription:
-    "Event result (typically empty data object, check meta.httpStatus for success)"
-})
+    "Event result (typically empty data object, check meta.httpStatus for success)",
+});
 
 const manifold_get_community_description = tool({
   name: "manifold_get_community_description",
@@ -386,12 +396,16 @@ const manifold_get_community_description = tool({
   description: "List the description that is associated with a Community",
   properties: {
     ...TOOL_COMMON_PROPS,
-    communityName: { type: "string", description: "Name for the Community pico that the description will be pulled from." },
+    communityName: {
+      type: "string",
+      description:
+        "Name for the Community pico that the description will be pulled from.",
+    },
   },
   required: ["communityName"],
   outputDescription:
-    "Event result (typically empty data object, check meta.httpStatus for success)"
-})
+    "Event result (typically empty data object, check meta.httpStatus for success)",
+});
 
 const manifold_remove_community = tool({
   name: "manifold_remove_community",
@@ -407,7 +421,7 @@ const manifold_remove_community = tool({
   required: ["communityName"],
   outputDescription:
     "Event result (typically empty data object, check meta.httpStatus for success)",
-})
+});
 
 const ALL_TOOLS = [
   manifold_getThings,
@@ -426,7 +440,7 @@ const ALL_TOOLS = [
   manifold_add_thing_to_community,
   manifold_get_community_things,
   manifold_get_community_description,
-  manifold_remove_community
+  manifold_remove_community,
 ];
 
 // Index tools by Skill name for dynamic tool exposure:
