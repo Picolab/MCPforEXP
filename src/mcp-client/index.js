@@ -222,17 +222,41 @@ class MCPClient extends EventEmitter {
 
         // --- STREAM PROCESSING LOOP ---
         for await (const chunk of response.stream) {
+          // Handle Text
           if (chunk.contentBlockDelta?.delta?.text) {
             const text = chunk.contentBlockDelta.delta.text;
+
+            // 1. ADD THIS BACK: To see it in the SSH terminal
+            console.log("DEBUG - CHUNK EMITTED:", text);
+
+            streamedText += text;
             assistantResponse += text;
 
             if (onChunk) {
-              // 1. Send the actual text
               onChunk(text);
-
-              // 2. THE HACK: Send invisible padding to force the proxy to flush
-              // 2048 spaces is usually enough to bypass most proxy buffers
+              // 2. THE HACK: Push 2KB of spaces to force the AWS Load Balancer to flush
               onChunk(" ".repeat(2048));
+            }
+          }
+
+          // Handle Tool Use Start
+          if (chunk.contentBlockStart?.start?.toolUse) {
+            currentToolUse = {
+              ...chunk.contentBlockStart.start.toolUse,
+              input: "",
+            };
+          }
+
+          // Handle Tool Input (Deltas)
+          if (chunk.contentBlockDelta?.delta?.toolUse?.input) {
+            currentToolUse.input += chunk.contentBlockDelta.delta.toolUse.input;
+          }
+
+          // Handle Tool Use End/Complete
+          if (chunk.contentBlockStop) {
+            if (currentToolUse) {
+              toolCallsFound.push(currentToolUse);
+              currentToolUse = null;
             }
           }
         }
