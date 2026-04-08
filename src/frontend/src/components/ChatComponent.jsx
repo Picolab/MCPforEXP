@@ -173,7 +173,7 @@ const ChatComponent = () => {
       {/* Input Area */}
       <form
         onSubmit={sendMessage}
-        className="p-4 bg-white border-t border-gray-100 flex items-end gap-3" // Increased gap to 3
+        className="p-4 bg-white border-t border-gray-100 flex items-center gap-3" // Increased gap to 3
       >
         <div className="relative flex-1">
           <textarea
@@ -201,7 +201,7 @@ const ChatComponent = () => {
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30 mb-2" // Added mb-2 to align with the first line of text
+          className="flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30" // Added mb-2 to align with the first line of text
           style={{
             background: "none",
             border: "none",
