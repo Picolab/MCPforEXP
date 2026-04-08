@@ -173,12 +173,12 @@ const ChatComponent = () => {
       {/* Input Area */}
       <form
         onSubmit={sendMessage}
-        className="p-4 bg-white border-t border-gray-100 flex items-end gap-2"
+        className="p-4 bg-white border-t border-gray-100 flex items-end gap-3" // Increased gap to 3
       >
         <div className="relative flex-1">
           <textarea
             ref={textareaRef}
-            className="w-full bg-gray-100 text-gray-800 text-sm rounded-2xl px-5 py-3 pr-24 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
+            className="w-full bg-gray-100 text-gray-800 text-sm rounded-2xl px-5 py-3 pr-12 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -193,40 +193,37 @@ const ChatComponent = () => {
             style={{ lineHeight: "1.5rem" }}
           />
 
-          {/* Action Buttons Container */}
-          <div className="absolute right-2 inset-y-0 flex items-center gap-1">
-            {/* Voice Button */}
-            <VoiceInput onTranscript={handleTranscript} disabled={isLoading} />
-
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30"
-              style={{
-                background: "none",
-                border: "none",
-                padding: "0 8px",
-                outline: "none",
-                boxShadow: "none",
-                appearance: "none",
-              }}
-            >
-              {isLoading ? (
-                <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="w-6 h-6 text-blue-600"
-                >
-                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                </svg>
-              )}
-            </button>
-          </div>
+          {/* Voice Button - Stays inside, pinned to the right */}
+          <VoiceInput onTranscript={handleTranscript} disabled={isLoading} />
         </div>
+
+        {/* Send Button - Now outside the relative div, sits to the right of the bar */}
+        <button
+          type="submit"
+          disabled={isLoading || !input.trim()}
+          className="flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30 mb-2" // Added mb-2 to align with the first line of text
+          style={{
+            background: "none",
+            border: "none",
+            padding: "4px",
+            outline: "none",
+            boxShadow: "none",
+            appearance: "none",
+          }}
+        >
+          {isLoading ? (
+            <span className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-7 h-7 text-blue-600" // Slightly larger to be the main focal point
+            >
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+            </svg>
+          )}
+        </button>
       </form>
     </div>
   );
