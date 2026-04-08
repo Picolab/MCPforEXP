@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import micIcon from "../assets/mic.png";
+import micIcon from "../assets/microphone.png";
 
 const VoiceInput = ({ onTranscript, disabled }) => {
   const [isListening, setIsListening] = useState(false);
