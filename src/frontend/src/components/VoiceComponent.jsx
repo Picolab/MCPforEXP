@@ -90,17 +90,15 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       type="button"
       onClick={toggleListening}
       disabled={disabled}
-      className={`absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center transition-all duration-300 rounded-full hover:bg-gray-100/60 ${
-        isListening ? "bg-red-100/50" : ""
+      className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 transition-transform active:scale-90 ${
+        isListening ? "animate-pulse" : ""
       }`}
     >
       <img
         src={micIcon}
         alt="microphone"
-        className={`w-5 h-5 object-contain transition-all duration-300 ${
-          isListening
-            ? "opacity-100 scale-110 animate-pulse"
-            : "opacity-70 scale-100"
+        className={`w-5 h-5 object-contain transition-opacity ${
+          isListening ? "opacity-100" : "opacity-50 hover:opacity-80"
         }`}
       />
     </button>
