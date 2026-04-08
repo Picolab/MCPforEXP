@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import micIcon from "../assets/mic.png";
 
 const VoiceInput = ({ onTranscript, disabled }) => {
   const [isListening, setIsListening] = useState(false);
@@ -89,11 +90,15 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       type="button"
       onClick={toggleListening}
       disabled={disabled}
-      className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm text-gray-500 hover:bg-gray-200 ${
-        isListening ? "bg-red-200 animate-pulse text-red-600" : "bg-gray-100"
+      className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all text-gray-500 hover:bg-gray-200 ${
+        isListening ? "bg-red-200 animate-pulse" : "bg-gray-100"
       }`}
     >
-      🎤
+      <img
+        src={micIcon}
+        alt="microphone"
+        className={`w-5 h-5 object-contain ${isListening ? "opacity-100" : "opacity-60"}`}
+      />
     </button>
   );
 };
