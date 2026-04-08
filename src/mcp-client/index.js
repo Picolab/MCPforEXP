@@ -222,33 +222,17 @@ class MCPClient extends EventEmitter {
 
         // --- STREAM PROCESSING LOOP ---
         for await (const chunk of response.stream) {
-          // Handle Text
           if (chunk.contentBlockDelta?.delta?.text) {
             const text = chunk.contentBlockDelta.delta.text;
-            console.log("STREAMING CHUNK:", text); // <--- Add this for debugging
-            streamedText += text;
             assistantResponse += text;
-            if (onChunk) onChunk(text); // Send to Express/Proxy
-          }
 
-          // Handle Tool Use Start
-          if (chunk.contentBlockStart?.start?.toolUse) {
-            currentToolUse = {
-              ...chunk.contentBlockStart.start.toolUse,
-              input: "",
-            };
-          }
+            if (onChunk) {
+              // 1. Send the actual text
+              onChunk(text);
 
-          // Handle Tool Input (Deltas)
-          if (chunk.contentBlockDelta?.delta?.toolUse?.input) {
-            currentToolUse.input += chunk.contentBlockDelta.delta.toolUse.input;
-          }
-
-          // Handle Tool Use End/Complete
-          if (chunk.contentBlockStop) {
-            if (currentToolUse) {
-              toolCallsFound.push(currentToolUse);
-              currentToolUse = null;
+              // 2. THE HACK: Send invisible padding to force the proxy to flush
+              // 2048 spaces is usually enough to bypass most proxy buffers
+              onChunk(" ".repeat(2048));
             }
           }
         }
