@@ -177,8 +177,8 @@ const ChatComponent = () => {
       >
         <div className="relative flex-1">
           <textarea
-            ref={textareaRef} // ✅ Attach ref
-            className="w-full bg-gray-100 text-gray-800 text-sm rounded-full px-5 py-3 pr-12 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
+            ref={textareaRef}
+            className="w-full bg-gray-100 text-gray-800 text-sm rounded-2xl px-5 py-3 pr-24 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -192,36 +192,41 @@ const ChatComponent = () => {
             rows={1}
             style={{ lineHeight: "1.5rem" }}
           />
-          {/* Voice Button inside input */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+
+          {/* Action Buttons Container */}
+          <div className="absolute right-2 inset-y-0 flex items-center gap-1">
+            {/* Voice Button */}
             <VoiceInput onTranscript={handleTranscript} disabled={isLoading} />
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30"
+              style={{
+                background: "none",
+                border: "none",
+                padding: "0 8px",
+                outline: "none",
+                boxShadow: "none",
+                appearance: "none",
+              }}
+            >
+              {isLoading ? (
+                <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="w-6 h-6 text-blue-600"
+                >
+                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
-
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-md active:scale-95"
-        >
-          {isLoading ? (
-            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              className="w-5 h-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 10l9-4 8 4-9 4-8-4z M3 10l9 4 8-4"
-              />
-            </svg>
-          )}
-        </button>
       </form>
     </div>
   );
