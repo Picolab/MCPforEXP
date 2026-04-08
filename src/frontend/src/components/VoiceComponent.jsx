@@ -90,16 +90,27 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       type="button"
       onClick={toggleListening}
       disabled={disabled}
-      className={`absolute inset-y-0 right-4 flex items-center justify-center bg-transparent border-none p-0 outline-none transition-transform active:scale-90 ${
+      // Using 'absolute' with a fixed right and a manual 'top-1/2'
+      // is the most reliable way to float over a textarea.
+      className={`absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center transition-transform active:scale-90 ${
         isListening ? "animate-pulse" : ""
       }`}
-      style={{ appearance: "none", WebkitAppearance: "none" }}
+      // This style object is the "Nuclear Option" to kill that gray box
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        outline: "none",
+        boxShadow: "none",
+        appearance: "none",
+      }}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="currentColor"
-        className={`w-5 h-5 transition-colors duration-300 ${
+        // Increased to w-6 h-6 to make it look "standard" size
+        className={`w-6 h-6 transition-colors duration-300 ${
           isListening ? "text-red-500" : "text-gray-400 hover:text-gray-600"
         }`}
       >
