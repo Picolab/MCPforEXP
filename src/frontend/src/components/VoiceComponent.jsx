@@ -90,18 +90,22 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       type="button"
       onClick={toggleListening}
       disabled={disabled}
-      className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 transition-transform active:scale-90 ${
+      className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-transform active:scale-90 ${
         isListening ? "animate-pulse" : ""
       }`}
     >
-      <img
-        src={micIcon}
-        alt="microphone"
-        className={`w-5 h-5 object-contain transition-all ${
-          isListening ? "opacity-100" : "opacity-60"
+      {/* Clean SVG Microphone Icon */}
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor" // Inherits text color
+        className={`w-6 h-6 transition-colors duration-300 ${
+          isListening ? "text-red-500" : "text-gray-400 hover:text-gray-600"
         }`}
-        style={{ mixBlendMode: "multiply" }}
-      />
+      >
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+      </svg>
     </button>
   );
 };
