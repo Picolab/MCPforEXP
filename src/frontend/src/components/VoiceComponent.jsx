@@ -97,9 +97,10 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       <img
         src={micIcon}
         alt="microphone"
-        className={`w-5 h-5 object-contain transition-opacity ${
-          isListening ? "opacity-100" : "opacity-50 hover:opacity-80"
+        className={`w-5 h-5 object-contain transition-all ${
+          isListening ? "opacity-100" : "opacity-60"
         }`}
+        style={{ mixBlendMode: "multiply" }}
       />
     </button>
   );
