@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
+import ReactMarkdown from "react-markdown";
 import VoiceInput from "./VoiceComponent";
 
 // In production, prefer same-origin so `/api` and `/socket.io` can be reverse-proxied
@@ -145,9 +146,16 @@ const ChatComponent = () => {
                   : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none"
               }`}
             >
-              <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
-                {msg.text}
-              </p>
+              {/* 2. Wrap the text in ReactMarkdown */}
+              {msg.role === "assistant" ? (
+                <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-gray-800 prose-pre:text-gray-100">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
+                  {msg.text}
+                </p>
+              )}
             </div>
           </div>
         ))}
