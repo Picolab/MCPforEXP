@@ -90,16 +90,16 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       type="button"
       onClick={toggleListening}
       disabled={disabled}
-      className={`absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center transition-transform active:scale-90 ${
+      className={`absolute inset-y-0 right-4 flex items-center justify-center bg-transparent border-none p-0 outline-none transition-transform active:scale-90 ${
         isListening ? "animate-pulse" : ""
       }`}
+      style={{ appearance: "none", WebkitAppearance: "none" }}
     >
-      {/* Clean SVG Microphone Icon */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
-        fill="currentColor" // Inherits text color
-        className={`w-6 h-6 transition-colors duration-300 ${
+        fill="currentColor"
+        className={`w-5 h-5 transition-colors duration-300 ${
           isListening ? "text-red-500" : "text-gray-400 hover:text-gray-600"
         }`}
       >
