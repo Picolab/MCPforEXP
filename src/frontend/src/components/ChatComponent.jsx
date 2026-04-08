@@ -148,7 +148,7 @@ const ChatComponent = () => {
             >
               {/* 2. Wrap the text in ReactMarkdown */}
               {msg.role === "assistant" ? (
-                <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-gray-800 prose-pre:text-gray-100">
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:mb-1 prose-headings:mt-2 prose-ul:my-1 prose-li:my-0 text-gray-700">
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
                 </div>
               ) : (

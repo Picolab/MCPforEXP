@@ -26,24 +26,30 @@
   background-color: #9ca3af; /* gray-400 */
 }
 
-/* Custom Chat Markdown Styling */
+/* Make Markdown headers look like bold labels rather than huge titles */
 .prose h1,
 .prose h2,
 .prose h3 {
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
+  font-size: 1rem !important; /* Force a smaller size */
   font-weight: 700;
-  color: inherit;
+  color: #1f2937; /* gray-800 */
+  margin-top: 0.75rem !important;
 }
 
-.prose p {
-  margin-bottom: 0.5rem;
+/* Tighten up lists */
+.prose ul {
+  padding-left: 1.25rem !important;
+  list-style-type: disc !important;
 }
 
-.prose ul,
-.prose ol {
-  margin-left: 1rem;
-  list-style-type: disc;
+.prose li {
+  margin-bottom: 0.1rem !important;
+}
+
+/* Horizontal rule cleanup */
+.prose hr {
+  margin: 0.75rem 0 !important;
+  border-color: #e5e7eb !important; /* gray-200 */
 }
 
 :root {
@@ -51,9 +57,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: light;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
