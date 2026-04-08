@@ -1,6 +1,6 @@
 const {
   BedrockRuntimeClient,
-  ConverseStreamCommand,
+  ConverseCommand,
 } = require("@aws-sdk/client-bedrock-runtime");
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
 const {
@@ -36,7 +36,7 @@ class MCPClient extends EventEmitter {
      * Example values: ["manifold_core", "safeandmine", "journal"]
      */
     this.currentSkills = ["manifold_core", "safeandmine"];
-    this.modelId = "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
+    this.modelId = "us.anthropic.claude-sonnet-4-5-20250929-v1:0";
   }
 
   async refreshTools() {
@@ -188,12 +188,13 @@ class MCPClient extends EventEmitter {
     }
   }
 
-  // 1. Add onChunk as a parameter so the Proxy can receive the stream
-  async processQuery(query, onChunk) {
+  async processQuery(query) {
+    // 1. Fetch history and the system prompt
     const fullHistory = await getManifoldContext();
     const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
-    const systemPrompt = this.getSystemPrompt("v0.1.0");
+    const systemPrompt = this.getSystemPrompt("v0.2.0"); // Matches your file versioning
 
+    // 2. Format history for Bedrock
     let messages = [...history, { role: "user", content: [{ text: query }] }];
     if (messages.length > 0 && messages[0].role !== "user") {
       messages.shift();
@@ -204,93 +205,39 @@ class MCPClient extends EventEmitter {
       const maxLoops = 5;
       let assistantResponse = "";
 
-      while (loopCount < maxLoops) {
-        this.emit("status", { message: "Manny is thinking..." });
+      let command = new ConverseCommand({
+        modelId: this.modelId,
+        system: [{ text: systemPrompt }],
+        messages,
+        toolConfig: { tools: this.prepareToolsForBedrock() },
+      });
 
-        const command = new ConverseStreamCommand({
-          modelId: this.modelId,
-          system: [{ text: systemPrompt }],
-          messages,
-          toolConfig: { tools: this.prepareToolsForBedrock() },
-        });
+      while (loopCount < maxLoops) {
+        // Notify UI: We are waiting for the LLM
+        this.emit("status", { message: "Claude is thinking..." });
 
         const response = await this.bedrock.send(command);
+        const outputMessage = response.output?.message;
+        if (!outputMessage) break;
 
-        let currentToolUse = null;
-        let streamedText = "";
-        let toolCallsFound = [];
+        messages.push(outputMessage);
+        const toolCalls = outputMessage.content.filter((c) => c.toolUse);
+        const textParts = outputMessage.content
+          .filter((c) => c.text)
+          .map((c) => c.text);
 
-        // --- STREAM PROCESSING LOOP ---
-        for await (const chunk of response.stream) {
-          // Handle Text
-          if (chunk.contentBlockDelta?.delta?.text) {
-            const text = chunk.contentBlockDelta.delta.text;
-
-            // 1. ADD THIS BACK: To see it in the SSH terminal
-            console.log("DEBUG - CHUNK EMITTED:", text);
-
-            streamedText += text;
-            assistantResponse += text;
-
-            if (onChunk) {
-              onChunk(text);
-              // 2. THE HACK: Push 2KB of spaces to force the AWS Load Balancer to flush
-              onChunk(" ".repeat(2048));
-            }
-          }
-
-          // Handle Tool Use Start
-          if (chunk.contentBlockStart?.start?.toolUse) {
-            currentToolUse = {
-              ...chunk.contentBlockStart.start.toolUse,
-              input: "",
-            };
-          }
-
-          // Handle Tool Input (Deltas)
-          if (chunk.contentBlockDelta?.delta?.toolUse?.input) {
-            currentToolUse.input += chunk.contentBlockDelta.delta.toolUse.input;
-          }
-
-          // Handle Tool Use End/Complete
-          if (chunk.contentBlockStop) {
-            if (currentToolUse) {
-              toolCallsFound.push(currentToolUse);
-              currentToolUse = null;
-            }
-          }
+        if (textParts.length > 0) {
+          assistantResponse +=
+            (assistantResponse ? "\n" : "") + textParts.join("\n");
         }
 
-        // --- RECONSTRUCT MESSAGE FOR HISTORY ---
-        // Bedrock needs the EXACT response back to continue the loop
-        const assistantMessageContent = [];
-        if (streamedText) assistantMessageContent.push({ text: streamedText });
+        if (toolCalls.length === 0) break;
 
-        toolCallsFound.forEach((tc) => {
-          assistantMessageContent.push({
-            toolUse: {
-              toolUseId: tc.toolUseId,
-              name: tc.name,
-              input: JSON.parse(tc.input || "{}"),
-            },
-          });
-        });
-
-        const outputMessage = {
-          role: "assistant",
-          content: assistantMessageContent,
-        };
-        messages.push(outputMessage);
-
-        // If no tools were called, we are done
-        if (toolCallsFound.length === 0) break;
-
-        // --- EXECUTE TOOLS ---
         const toolResults = [];
-        for (const toolCall of toolCallsFound) {
-          const { name, toolUseId } = toolCall;
-          const input = JSON.parse(toolCall.input || "{}");
+        for (const content of toolCalls) {
+          const { name, input, toolUseId } = content.toolUse;
 
+          // CRITICAL FOR UI: Tell the user EXACTLY what tool is running
           this.emit("tool-use", { name, input });
 
           try {
@@ -302,13 +249,18 @@ class MCPClient extends EventEmitter {
                   .join("\n")
               : JSON.stringify(result);
 
-            // Handle Skill Refresh logic
+            // If we just derived Skills for a Thing, update currentSkills immediately
+            // so subsequent tool selection in this same query uses the correct subset.
             if (name === "manifold_getThingSkills") {
               try {
                 const parsed = JSON.parse(text);
                 const skills = parsed?.data?.skills;
-                if (Array.isArray(skills)) this.setCurrentSkills(skills);
-              } catch (_) {}
+                if (Array.isArray(skills) && skills.length > 0) {
+                  this.setCurrentSkills(skills);
+                }
+              } catch (_) {
+                // Ignore parsing errors; tool result is still passed back to the LLM
+              }
             }
 
             toolResults.push({
@@ -329,12 +281,16 @@ class MCPClient extends EventEmitter {
           }
         }
 
-        // Push results and loop
         messages.push({ role: "user", content: toolResults });
+        command = new ConverseCommand({
+          modelId: this.modelId,
+          system: [{ text: systemPrompt }],
+          messages,
+          toolConfig: { tools: this.prepareToolsForBedrock() },
+        });
         loopCount++;
       }
 
-      // Update the persistent database/file context
       await updateManifoldContext([
         ...history,
         { role: "user", content: [{ text: query }] },
@@ -343,8 +299,7 @@ class MCPClient extends EventEmitter {
 
       return assistantResponse;
     } catch (e) {
-      console.error("Critical Error in processQuery:", e);
-      throw e;
+      throw e; // Let the Express API handle the error response
     }
   }
 
@@ -377,7 +332,7 @@ class MCPClient extends EventEmitter {
     }
   }
 
-  getSystemPrompt(version = "v0.1.0") {
+  getSystemPrompt(version = "v0.2.0") {
     try {
       // Adjusted path to look for the 'prompts' folder at your project root
       const promptPath = path.join(

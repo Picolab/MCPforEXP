@@ -65,67 +65,39 @@ const ChatComponent = () => {
 
   const sendMessage = async (e, overridingText = null) => {
     if (e) e.preventDefault();
+
+    // Use the provided text OR the current state input
     const messageToSend = overridingText || input;
+
     if (!messageToSend.trim() || isLoading) return;
 
-    // 1. Add User Message AND an empty Assistant placeholder immediately
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: messageToSend },
-      { role: "assistant", text: "" }, // This is the bubble that will "grow"
-    ]);
-
-    setInput("");
+    const userMessage = { role: "user", text: messageToSend };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput(""); // Clear the input field
     setIsLoading(true);
-    setStatus("Manny is typing...");
+    setStatus("Manny is thinking...");
 
     try {
-      const response = await fetch(`${API_URL}/api/chat`, {
+      const endpoint = API_URL ? `${API_URL}/api/chat` : "/api/chat";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: messageToSend }),
+        body: JSON.stringify({ message: messageToSend }), // Use the same variable here
       });
 
-      if (!response.ok) throw new Error("Network response was not ok");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulatedText = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              if (parsed.text) {
-                accumulatedText += parsed.text;
-
-                // 2. Update ONLY the last message (the placeholder)
-                setMessages((prev) => {
-                  const newMessages = [...prev];
-                  newMessages[newMessages.length - 1].text = accumulatedText;
-                  return newMessages;
-                });
-              }
-            } catch (e) {
-              console.error("Stream parsing error", e);
-            }
-          }
-        }
-      }
+      const data = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: data.success ? data.answer : `Error: ${data.error}`,
+        },
+      ]);
     } catch (err) {
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1].text =
-          "Connection error. Please try again.";
-        return newMessages;
-      });
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Failed to connect to backend." },
+      ]);
     } finally {
       setIsLoading(false);
       setStatus("");
@@ -166,22 +138,16 @@ const ChatComponent = () => {
               msg.role === "user" ? "justify-end" : "justify-start"
             }`}
           >
-            {/* Inside your messages.map */}
             <div
-              className={`max-w-[85%] px-4 py-2.5 shadow-sm text-left transition-all duration-200 ${
+              className={`max-w-[85%] px-4 py-2.5 shadow-sm text-left ${
                 msg.role === "user"
                   ? "bg-blue-600 text-white rounded-2xl rounded-tr-none"
-                  : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none min-h-[44px] min-w-[50px]"
+                  : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none"
               }`}
             >
-              {/* If text is empty and it's an assistant message, show a tiny pulse or cursor */}
-              {msg.text === "" && msg.role === "assistant" ? (
-                <span className="inline-block w-2 h-4 bg-gray-300 animate-pulse rounded-sm"></span>
-              ) : (
-                <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">
-                  {msg.text}
-                </p>
-              )}
+              <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
+                {msg.text}
+              </p>
             </div>
           </div>
         ))}

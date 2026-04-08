@@ -53,23 +53,17 @@ io.on("connection", (socket) => {
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
 
-  // 1. Set headers for streaming
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
+  if (!message) {
+    return res.status(400).json({ error: "Message is required" });
+  }
 
   try {
-    // 2. Your LLM logic needs to support a callback for chunks
-    await client.processQuery(message, (chunk) => {
-      // 3. Write each chunk to the response immediately
-      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    });
-
-    res.end();
+    // This triggers the agentic loop we built
+    const result = await client.processQuery(message);
+    res.json({ success: true, answer: result });
   } catch (error) {
-    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
-    res.end();
+    console.error("API Error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
