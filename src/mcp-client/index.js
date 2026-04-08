@@ -214,7 +214,7 @@ class MCPClient extends EventEmitter {
 
       while (loopCount < maxLoops) {
         // Notify UI: We are waiting for the LLM
-        this.emit("status", { message: "Claude is thinking..." });
+        this.emit("status", { message: "Manny is thinking..." });
 
         const response = await this.bedrock.send(command);
         const outputMessage = response.output?.message;
