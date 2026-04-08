@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+/* --- DEMO SCROLLBAR FIX --- */
+/* Target the specific chat window class or apply globally */
+.overflow-y-auto {
+  scrollbar-color: #d1d5db transparent; /* Firefox fallback */
+  scrollbar-width: thin;
+}
+
+/* Chrome, Edge, and Safari */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: #d1d5db; /* gray-300 */
+  border-radius: 20px;
+  border: 1px solid transparent; /* creates a little padding effect */
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af; /* gray-400 */
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
