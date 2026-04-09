@@ -26,14 +26,27 @@
   background-color: #9ca3af; /* gray-400 */
 }
 
+.prose {
+  font-family: inherit !important;
+  font-size: 14.5px !important;
+  color: #1f2937 !important; /* gray-800 */
+}
+
+/* Ensure the paragraphs inside the markdown don't override the size */
+.prose p {
+  font-size: 14.5px !important;
+  line-height: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
 /* Make Markdown headers look like bold labels rather than huge titles */
 .prose h1,
 .prose h2,
 .prose h3 {
-  font-size: 1rem !important; /* Force a smaller size */
-  font-weight: 700;
-  color: #1f2937; /* gray-800 */
+  font-size: 15px !important;
   margin-top: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
+  font-weight: 700 !important;
 }
 
 /* Tighten up lists */
