@@ -1,13 +1,65 @@
 @import "tailwindcss";
 
+/* --- DEMO SCROLLBAR FIX --- */
+/* Target the specific chat window class or apply globally */
+.overflow-y-auto {
+  scrollbar-color: #d1d5db transparent; /* Firefox fallback */
+  scrollbar-width: thin;
+}
+
+/* Chrome, Edge, and Safari */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: #d1d5db; /* gray-300 */
+  border-radius: 20px;
+  border: 1px solid transparent; /* creates a little padding effect */
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af; /* gray-400 */
+}
+
+/* Make Markdown headers look like bold labels rather than huge titles */
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-size: 1rem !important; /* Force a smaller size */
+  font-weight: 700;
+  color: #1f2937; /* gray-800 */
+  margin-top: 0.75rem !important;
+}
+
+/* Tighten up lists */
+.prose ul {
+  padding-left: 1.25rem !important;
+  list-style-type: disc !important;
+}
+
+.prose li {
+  margin-bottom: 0.1rem !important;
+}
+
+/* Horizontal rule cleanup */
+.prose hr {
+  margin: 0.75rem 0 !important;
+  border-color: #e5e7eb !important; /* gray-200 */
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: light;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;

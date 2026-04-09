@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
+import ReactMarkdown from "react-markdown";
 import VoiceInput from "./VoiceComponent";
 
 // In production, prefer same-origin so `/api` and `/socket.io` can be reverse-proxied
@@ -75,7 +76,7 @@ const ChatComponent = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput(""); // Clear the input field
     setIsLoading(true);
-    setStatus("Claude is thinking...");
+    setStatus("Manny is thinking...");
 
     try {
       const endpoint = API_URL ? `${API_URL}/api/chat` : "/api/chat";
@@ -125,7 +126,7 @@ const ChatComponent = () => {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <p className="text-sm italic text-center px-12">
-              Ready for your Manifold queries. Try asking "what things do I
+              Ready for your Manifold queries. Try asking, "What things do I
               have?"
             </p>
           </div>
@@ -145,9 +146,16 @@ const ChatComponent = () => {
                   : "bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-none"
               }`}
             >
-              <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
-                {msg.text}
-              </p>
+              {/* 2. Wrap the text in ReactMarkdown */}
+              {msg.role === "assistant" ? (
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:mb-1 prose-headings:mt-2 prose-ul:my-1 prose-li:my-0 text-gray-700">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-left">
+                  {msg.text}
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -173,12 +181,12 @@ const ChatComponent = () => {
       {/* Input Area */}
       <form
         onSubmit={sendMessage}
-        className="p-4 bg-white border-t border-gray-100 flex items-end gap-2"
+        className="p-4 bg-white border-t border-gray-100 flex items-center gap-3" // Increased gap to 3
       >
         <div className="relative flex-1">
           <textarea
-            ref={textareaRef} // ✅ Attach ref
-            className="w-full bg-gray-100 text-gray-800 text-sm rounded-full px-5 py-3 pr-12 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
+            ref={textareaRef}
+            className="w-full bg-gray-100 text-gray-800 text-sm rounded-2xl px-5 py-3 pr-12 border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 resize-none overflow-hidden"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -192,33 +200,35 @@ const ChatComponent = () => {
             rows={1}
             style={{ lineHeight: "1.5rem" }}
           />
-          {/* Voice Button inside input */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2">
-            <VoiceInput onTranscript={handleTranscript} disabled={isLoading} />
-          </div>
+
+          {/* Voice Button - Stays inside, pinned to the right */}
+          <VoiceInput onTranscript={handleTranscript} disabled={isLoading} />
         </div>
 
+        {/* Send Button - Now outside the relative div, sits to the right of the bar */}
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-md active:scale-95"
+          className="flex items-center justify-center transition-transform active:scale-90 disabled:opacity-30" // Added mb-2 to align with the first line of text
+          style={{
+            background: "none",
+            border: "none",
+            padding: "4px",
+            outline: "none",
+            boxShadow: "none",
+            appearance: "none",
+          }}
         >
           {isLoading ? (
-            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              fill="none"
               viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              className="w-5 h-5"
+              fill="currentColor"
+              className="w-7 h-7 text-blue-600" // Slightly larger to be the main focal point
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 10l9-4 8 4-9 4-8-4z M3 10l9 4 8-4"
-              />
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
             </svg>
           )}
         </button>

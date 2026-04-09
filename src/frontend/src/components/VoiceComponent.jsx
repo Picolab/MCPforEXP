@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import micIcon from "../assets/microphone.png";
 
 const VoiceInput = ({ onTranscript, disabled }) => {
   const [isListening, setIsListening] = useState(false);
@@ -89,11 +90,33 @@ const VoiceInput = ({ onTranscript, disabled }) => {
       type="button"
       onClick={toggleListening}
       disabled={disabled}
-      className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm text-gray-500 hover:bg-gray-200 ${
-        isListening ? "bg-red-200 animate-pulse text-red-600" : "bg-gray-100"
+      // Using 'absolute' with a fixed right and a manual 'top-1/2'
+      // is the most reliable way to float over a textarea.
+      className={`absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center transition-transform active:scale-90 ${
+        isListening ? "animate-pulse" : ""
       }`}
+      // This style object is the "Nuclear Option" to kill that gray box
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        outline: "none",
+        boxShadow: "none",
+        appearance: "none",
+      }}
     >
-      🎤
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        // Increased to w-6 h-6 to make it look "standard" size
+        className={`w-6 h-6 transition-colors duration-300 ${
+          isListening ? "text-red-500" : "text-gray-400 hover:text-gray-600"
+        }`}
+      >
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+      </svg>
     </button>
   );
 };
