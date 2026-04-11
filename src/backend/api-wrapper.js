@@ -754,11 +754,11 @@ async function deleteCommunity(communityName) {
 async function getCommunityIDByName(communityName) {
   const communities = await listCommunities();
   for (const [picoID, communityData] of Object.entries(communities)) {
-    if (communityData.name === communityData) {
+    if (communityData.name === communityName) {
       return picoID;
     }
   }
-  throw new Error(`Thing "${communityName}" not found`);
+  throw new Error(`Community "${communityName}" not found`);
 }
 
 module.exports = {
