@@ -601,7 +601,7 @@ async function createCommunity(communityName, description) {
   const communitiesResult = await listCommunities();
   const communities = communitiesResult || {}; // Fallback to empty object if null/undefined
 
-  for (const [picoID, communityData] of Object.entries(things)) {
+  for (const [picoID, communityData] of Object.entries(communities)) {
     if (communityData && communityData.name === communityData) {
       throw new Error(`Thing with name "${communityName}" already exists`);
     }
