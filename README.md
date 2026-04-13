@@ -1,6 +1,40 @@
 # README
 
-This is a repository for the MCPforEXP project. The project aims to create a conversational interface for Manifold.
+## Overview
+
+Modern systems like Manifold expose powerful functionality, but interacting with them often requires deep knowledge of APIs, event schemas, and system-specific concepts. This creates a barrier for new developers and limits accessibility for non-technical users. A natural language interface lowers this barrier by allowing users to interact with the system conversationally—issuing commands, querying state, and triggering workflows without needing to understand the underlying implementation details.
+
+This project explores how to build that interface using Model Context Protocol (MCP) combined with picos. MCP provides a structured way for large language models to call tools and interact with external systems, while picos provide a decentralized, event-driven runtime for executing logic. Together, they form a compelling architecture: the LLM handles intent and language, MCP translates that into structured actions, and the pico engine executes those actions reliably.
+
+The result is a conversational layer over Manifold that maps user intent directly to system behavior. This repository serves as a reference implementation for that pattern—demonstrating how MCP and picos can be composed into a full-stack application that bridges natural language and distributed event systems.
+
+## Architecture
+
+This architecture separates concerns across clear layers:
+
+- **Chat UI** – Handles user interaction and displays responses
+- **Express / Socket.io** – Manages real-time communication between frontend and backend
+- **MCP Client** – Interfaces with the LLM (e.g., Claude via Bedrock) and formats tool calls
+- **MCP Server** – Exposes system capabilities as callable tools
+- **Pico Engine** – Executes events (KRL rulesets) and maintains system state
+
+For a deeper breakdown of how data flows through the system, see docs/how-it-works.md.
+
+## Key Concepts
+
+Before diving into the code, it’s important to understand a few core ideas:
+
+### Picos
+
+Picos are lightweight, event-driven computing units that run inside the pico engine. Each pico has its own state and communicates via events. A critical concept is the Event Channel Identifier (ECI), which acts as the address for sending events to a specific pico. Without the ECI, you cannot interact with a pico.
+
+### Manifold
+
+Manifold is a platform built on the pico engine that enables the creation and orchestration of pico-based systems. It provides the environment where rulesets are deployed and executed.
+
+### MCP (Model Context Protocol)
+
+Model Context Protocol is a protocol that allows language models to interact with external tools in a structured way. Instead of generating raw text, the model can invoke defined operations, making it ideal for integrating LLMs with systems like the pico engine.
 
 ## Project Structure
 
