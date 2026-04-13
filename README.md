@@ -34,9 +34,13 @@ Picos are lightweight, event-driven computing units that run inside the pico eng
 
 Manifold is a platform built on the pico engine that enables the creation and orchestration of pico-based systems. It provides the environment where rulesets are deployed and executed.
 
+Link to [Manifold](https://manifold.picolabs.io/)
+
 ### MCP (Model Context Protocol)
 
 Model Context Protocol is a protocol that allows language models to interact with external tools in a structured way. Instead of generating raw text, the model can invoke defined operations, making it ideal for integrating LLMs with systems like the pico engine.
+
+Link to [MCP Documentation](https://code.claude.com/docs/en/mcp)
 
 ## Project Structure
 
