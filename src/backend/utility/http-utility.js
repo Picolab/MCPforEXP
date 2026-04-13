@@ -1,27 +1,22 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
-async function checkENVVariable(variable, variableName) {
+function checkENVVariable(variable, variableName) {
   if (variable) {
     return variable;
-  } else {
-    console.error(
-      `CRITICAL: ${variableName} is ${typeof variable}. Check your .env file!`,
-    );
-    throw new Error(`The environment variable ${variableName} is missing.`);
   }
+  console.error(`CRITICAL: ${variableName} is missing. Check your .env file!`);
+  throw new Error(`The environment variable ${variableName} is missing.`);
 }
 
+// Get the URL once at the top level
+const PICO_BASE_URL = checkENVVariable(
+  process.env.PICO_ENGINE_BASE_URL,
+  "PICO_ENGINE_BASE_URL",
+);
+
 async function getFetchRequest(requestEndpoint) {
-  const baseURL = await checkENVVariable(
-    process.env.PICO_ENGINE_BASE_URL,
-    "PICO_ENGINE_BASE_URL",
-  );
-
-  // This automatically manages slashes safely
-  const requestURL = new URL(requestEndpoint, baseURL).href;
-
-  // console.error("getFetchRequest attempting:", requestURL);
-
+  const requestURL = new URL(requestEndpoint, PICO_BASE_URL).href;
   try {
     const response = await fetch(requestURL);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -33,26 +28,14 @@ async function getFetchRequest(requestEndpoint) {
 }
 
 async function postFetchRequest(requestEndpoint, requestBody) {
-  const baseURL = await checkENVVariable(
-    process.env.PICO_ENGINE_BASE_URL,
-    "PICO_ENGINE_BASE_URL",
-  );
-
-  const requestURL = new URL(requestEndpoint, baseURL).href;
-
+  const requestURL = new URL(requestEndpoint, PICO_BASE_URL).href;
   try {
     const response = await fetch(requestURL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response;
   } catch (err) {
     console.error("Fetch Logic Failed: ", err.message);
@@ -60,7 +43,4 @@ async function postFetchRequest(requestEndpoint, requestBody) {
   }
 }
 
-module.exports = {
-  getFetchRequest,
-  postFetchRequest,
-};
+module.exports = { getFetchRequest, postFetchRequest };
