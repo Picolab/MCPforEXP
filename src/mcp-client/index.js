@@ -10,7 +10,6 @@ const EventEmitter = require("events");
 const dotenv = require("dotenv");
 const fs = require("fs");
 const path = require("path");
-// Ensure dotenv finds the .env at the project root
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 const {
   getManifoldContext,
