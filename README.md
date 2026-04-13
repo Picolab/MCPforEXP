@@ -46,6 +46,7 @@ Link to [MCP Documentation](https://code.claude.com/docs/en/mcp)
 
 ```text
 ├── github/workflows
+├── docs
 ├── Manifold-api/           # .krl rules for the pico engine (MCP logic)
 ├── prompts/                # Prompt templates used by the MCP / LLM
 ├── scripts/                # Automation scripts (setup, teardown, testing)
@@ -58,9 +59,9 @@ Link to [MCP Documentation](https://code.claude.com/docs/en/mcp)
 │   └── frontend/
 ├── test/                   # Test suites
 │   ├── backend/
-│   │   ├── server/
-│   │   ├── llm/
-│   │   └── mcp/
+│   │   ├── mcp-server/
+│   │   ├── backend/
+│   │   └── mcp-client/
 │   └── frontend/
 ```
 
@@ -92,11 +93,7 @@ npm install
 
 ### Environment Variables
 
-Create a .env file with the following variables:
-
-AWS_REGION='us-east-2'
-PICO_ENGINE_BASE_URL=http://localhost:3000
-VITE_API_URL=http://manny.picolabs.io:3001
+Follow `.env.example` to set up your own .env file. You will need to supply your own values for the AWS variables, but should otherwise use the defaults.
 
 ### Setup
 
@@ -136,11 +133,8 @@ npm run test
 
 ## Running the Frontend
 
-To test or use our frontend component for interacting with the MCP client/LLM, you will need two terminals open and running.
+To test or use our frontend component for interacting with the MCP client/LLM, you will need three terminals open and running.
 
 1. Run `npm run dev` to open vite
 2. Run `npm run proxy` to connect to the mcp server
-
-Alternatively, open `http://18.217.240.202:3005/` in your browser to see the chatbot or `http://18.217.240.202:3000/` to see the associated pico-engine.
-
-NOTE: As it's currently configured, no matter which way the chatbot is opened, it will connect to the pico-engine instance running on the EC2 server. Any interactions you make with the pico-engine will be recorded and show up for any othe user. Multi-tenancy will be the next step.
+3. Run `pico-engine` to run the engine
