@@ -6,75 +6,38 @@ The flow is designed to separate responsibilities cleanly: the frontend handles 
 
 ## End-to-End Flow
 
-Here's what happens when a user sends a message:
+For an example, we will be using the request to "Create a backpack" to demonstrate how it travels through every layer of the system.
 
-1. **User Input (Chat UI)** The user enters a message in the chat interface (e.g., "Create a new pico and register it").
-2. **Transport Layer (Express + Socket.io)**
-   The message is sent to the backend using WebSockets. This allows for real time, bidirectional communication between the UI and the server.
-3. **Tool Invocation (MCP Server)**
-   If the LLM decides to call a tool
+![Flowchart Diagram](Flowchart.png)
 
-- The MCP client sends the request to the MCP server (via stdio)
-- The MCP server validates and routs the request to the appropriate operation.
+### 1. User Input (Chat UI)
 
-6. **State & Logic (Pico Engine)**
-   The Manifold API and the Pico Engine
+The process begins with the file `ChatComponent.jsx`. A user of the conversational interface types in the request to "Create a backpack". The message is sent via HTTP POST to the api/chat endpoint within the `api-proxy.js` file.
 
-- Recieves the event
-- Executes the relevent ruleset (KRL)
-- Updates state
+### 2. MCP Client
 
-7. **Response Propagation**
-   The result flows back up the stack:
+The `api-proxy.js` file serves as the headquarters for bridging the server and the MCPClient. It receives the request and passes it to the MCPClient (`index.js`) to be processed. The MCPClient sends a command (consisting of the formatted message and available tools) to Amazon Bedrock.
 
-- Pico Engine -> MCP Server -> MCP client -> Backend -> Frontend
-- The user sees a response in natural language
+### 3. Tool Invocation (MCP Server)
 
-## Key Mechanisms
+Bedrock identifies the user's intent to "Create a backpack" and returns a JSON instruction to call the `manifold_create_thing` tool:
 
-### Tool Calling via MCP
+- The MCP client sends the request to the MCP Server in `server.js`. This is done via `stdio`, which is a standard Model Context Protocol communication method where the Client and Server talk over a persistent local process.
+- The MCP server validates and routes the request to the `manifold_create_thing` operation in `krl-operation.js`.
 
-Instead of returning only text, the LLM can decide to call a tool. For example:
+### 4. Manifold API Wrapper
 
-- User: "Create a book"
-- LLM: Calls manifold_create_thing with structured arguments.
+The operation simply calls the API wrapper function `createThing(thingName)` from the `api-wrapper.js` file. The thingName is specified as "Backpack", and becomes part of a direct fetch request to the Manifold API.
 
-This makes the system reliable and deterministic-actions are not inferred from text but are explicitly invoked.
+### 5. State & Logic (Pico Engine)
 
-## Event-Based Execution
+The Manifold API and the Pico Engine recieve the event, execute the relevant KRL ruleset, and update the state. At this point, the pico-engine developer UI can be visually inspected to verify the creation of a new "Backpack" item.
 
-The pico engine operates on events:
+### 6. Response Propagation
 
-- Every action becomes an event
-- Events are sent to a pico using its ECI (Event Channel Identifier)
-- Rulesets listen for events and react accordingly
+The result flows back up the stack:
 
-This model enables:
+- Pico Engine -> MCP Server -> MCP Client -> Frontend
+- Note: Real-time status updates travel back to the UI via Socket.io
 
-- Decoupled components
-- Asynchronous workflows
-- Scalable system design
-
-## Example Walkthrough
-
-**User Input:**
-“List all my things"
-
-**Step-by-step:**
-
-1. User sends message via Chat UI
-2. Backend forwards message to MCP client
-3. LLM determines this maps to a manifold_getThings tool
-4. MCP client sends tool call to MCP server
-5. Operation sends event to Manifold API using ECI
-6. Pico engine retrieves pico list
-7. Result is returned up the stack
-8. LLM formats the result into a readable response
-9. User sees the list in the UI
-
-## Where to Look Next
-
-- src/backend/mcp-server/ – Tool definitions and routing
-- src/mcp-client/ – LLM interaction logic
-- Manifold-api/ – KRL rulesets and pico logic
-- prompts/ – Prompt templates used by the LLM
+The user sees a response in natural language affirming that their new "Backpack" was successfully created!
