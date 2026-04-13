@@ -1,15 +1,16 @@
+const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const { MCPClient } = require("./index.js"); // Path to your refactored client
-const path = require("path");
 const app = express();
 const server = http.createServer(app);
 
 // Configure Socket.io with CORS for your EC2 setup
 const io = new Server(server, {
+  path: "/socket.io",
   cors: {
     origin: process.env.VITE_API_URL || "*",
     methods: ["GET", "POST"],
