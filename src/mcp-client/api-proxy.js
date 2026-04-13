@@ -1,23 +1,26 @@
+require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const { MCPClient } = require("./index.js"); // Path to your refactored client
 const path = require("path");
-
 const app = express();
 const server = http.createServer(app);
 
 // Configure Socket.io with CORS for your EC2 setup
 const io = new Server(server, {
   cors: {
-    origin: "*", // In production, replace with your EC2 public IP or Domain
+    origin: process.env.VITE_API_URL || "*",
     methods: ["GET", "POST"],
   },
 });
 
 app.use(cors());
 app.use(express.json());
+
+const PORT = process.env.PORT || 3001;
+const HOST = process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost";
 
 // 1. Initialize the "Brain"
 const client = new MCPClient();
@@ -67,8 +70,6 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.error(`🚀 API Proxy & Socket server running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.error(`🚀 API Proxy & Socket server running on ${HOST}:${PORT}`);
 });
