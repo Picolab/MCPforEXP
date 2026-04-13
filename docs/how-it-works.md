@@ -6,75 +6,50 @@ The flow is designed to separate responsibilities cleanly: the frontend handles 
 
 ## End-to-End Flow
 
-Here's what happens when a user sends a message:
+For an example, we will be using the request to "Create a backpack" to demonstrate how it travels through every layer of the system.
 
-1. **User Input (Chat UI)** The user enters a message in the chat interface (e.g., "Create a new pico and register it").
-2. **Transport Layer (Express + Socket.io)**
-   The message is sent to the backend using WebSockets. This allows for real time, bidirectional communication between the UI and the server.
-3. **Tool Invocation (MCP Server)**
-   If the LLM decides to call a tool
+### 1. User Input (Chat UI)
+
+The process begins with the file `ChatComponent.jsx`. A user of the conversational interface types in the request to "Create a backpack". The message is sent to the api/chat endpoint within the `api-proxy.js` file.
+
+### 2. MCP Client
+
+The `api-proxy.js` file serves as the headquarters for bridging the server and the MCPClient. It receives the message and passes it to the MCPClient to be processed.
+
+### 3. Transport Layer (Express + Socket.io)
+
+The message is sent to the backend using WebSockets. This allows for real time, bidirectional communication between the UI and the server.
+
+### 4. Tool Invocation (MCP Server)
+
+If the LLM decides to call a tool
 
 - The MCP client sends the request to the MCP server (via stdio)
 - The MCP server validates and routs the request to the appropriate operation.
 
-6. **State & Logic (Pico Engine)**
-   The Manifold API and the Pico Engine
+### 6. State & Logic (Pico Engine)
+
+The Manifold API and the Pico Engine
 
 - Recieves the event
 - Executes the relevent ruleset (KRL)
 - Updates state
 
-7. **Response Propagation**
-   The result flows back up the stack:
+### 7. Response Propagation
+
+The result flows back up the stack:
 
 - Pico Engine -> MCP Server -> MCP client -> Backend -> Frontend
 - The user sees a response in natural language
 
-## Key Mechanisms
+How the MCP client builds the Bedrock request with tool schemas
 
-### Tool Calling via MCP
+How Claude decides to call manifold_create_thing
 
-Instead of returning only text, the LLM can decide to call a tool. For example:
+How the MCP server (stdio transport) receives and dispatches it
 
-- User: "Create a book"
-- LLM: Calls manifold_create_thing with structured arguments.
+How krl-operation.js translates it to a pico engine event
 
-This makes the system reliable and deterministic-actions are not inferred from text but are explicitly invoked.
+How the KRL ruleset handles the event
 
-## Event-Based Execution
-
-The pico engine operates on events:
-
-- Every action becomes an event
-- Events are sent to a pico using its ECI (Event Channel Identifier)
-- Rulesets listen for events and react accordingly
-
-This model enables:
-
-- Decoupled components
-- Asynchronous workflows
-- Scalable system design
-
-## Example Walkthrough
-
-**User Input:**
-“List all my things"
-
-**Step-by-step:**
-
-1. User sends message via Chat UI
-2. Backend forwards message to MCP client
-3. LLM determines this maps to a manifold_getThings tool
-4. MCP client sends tool call to MCP server
-5. Operation sends event to Manifold API using ECI
-6. Pico engine retrieves pico list
-7. Result is returned up the stack
-8. LLM formats the result into a readable response
-9. User sees the list in the UI
-
-## Where to Look Next
-
-- src/backend/mcp-server/ – Tool definitions and routing
-- src/mcp-client/ – LLM interaction logic
-- Manifold-api/ – KRL rulesets and pico logic
-- prompts/ – Prompt templates used by the LLM
+How the result flows back up
