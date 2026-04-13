@@ -8,6 +8,8 @@ The flow is designed to separate responsibilities cleanly: the frontend handles 
 
 For an example, we will be using the request to "Create a backpack" to demonstrate how it travels through every layer of the system.
 
+![Flowchart Diagram](Flowchart.png)
+
 ### 1. User Input (Chat UI)
 
 The process begins with the file `ChatComponent.jsx`. A user of the conversational interface types in the request to "Create a backpack". The message is sent via HTTP POST to the api/chat endpoint within the `api-proxy.js` file.
