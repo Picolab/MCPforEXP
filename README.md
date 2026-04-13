@@ -10,6 +10,8 @@ The result is a conversational layer over Manifold that maps user intent directl
 
 ## Architecture
 
+![Architecture Diagram](docs/Architecture.png)
+
 This architecture separates concerns across clear layers:
 
 - **Chat UI** – Handles user interaction and displays responses
