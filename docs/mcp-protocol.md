@@ -75,8 +75,8 @@ These helpers live in `src/backend/krl-operation.js` and all return the envelope
   - Query: `manifold_getCommunities()`
   - Event: `manifold_create_community(communityName, description)`
   - Event: `manifold_add_thing_to_community(thingName, communityName)`
-  - Event: `manifold_get_community_things(communityName)`
-  - Event: `manifold_get_community_description(communityName)`
+  - Query: `manifold_get_community_things(communityName)`
+  - Query: `manifold_get_community_description(communityName)`
   - Event: `manifold_remove_community(communityName)`
 - **Thing pico (safeandmine + journal ruleset)**
   - Query: `scanTag(tagId, domain)`
