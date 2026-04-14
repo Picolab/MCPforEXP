@@ -5,6 +5,7 @@ const {
   getECIByTag,
   getChildEciByName,
   traverseHierarchy,
+  getCommunityEciByName,
 } = require("./utility/eci-utility.js");
 const { picoHasRuleset, installRuleset } = require("./utility/api-utility.js");
 const { postFetchRequest } = require("./utility/http-utility.js");
@@ -660,7 +661,7 @@ async function addThingToCommunity(thingName, communityName) {
     const picoID = await getPicoIDByName(thingName);
     const communityID = await getCommunityIDByName(communityName);
 
-    const requestEndpoint = `/c/${manifoldEci}/manifold/add_thing_to_community`;
+    const requestEndpoint = `/c/${manifoldEci}/event-wait/manifold/add_thing_to_community`;
 
     // Send API Request
     const response = await postFetchRequest(requestEndpoint, {
@@ -682,10 +683,13 @@ async function addThingToCommunity(thingName, communityName) {
  */
 async function listThingsFromCommunity(communityName) {
   try {
-    //const manifoldEci = await traverseHierarchy();
-    const communityID = await getCommunityIDByName(communityName);
+    const manifoldEci = await traverseHierarchy();
+    const engineEci = await getCommunityEciByName(manifoldEci, communityName);
+    const communityEci = await getECIByTag(engineEci, "manifold");
 
-    const requestEndpoint = `/c/${communityID}/query/io.picolabs.community/things`;
+    //const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${communityEci}/query/io.picolabs.community/things`;
 
     // Send API Request
     const response = await postFetchRequest(requestEndpoint, {});
@@ -704,10 +708,13 @@ async function listThingsFromCommunity(communityName) {
  */
 async function getCommunityDescription(communityName) {
   try {
-    //const manifoldEci = await traverseHierarchy();
-    const communityID = await getCommunityIDByName(communityName);
+    const manifoldEci = await traverseHierarchy();
+    const engineEci = await getCommunityEciByName(manifoldEci, communityName);
+    const communityEci = await getECIByTag(engineEci, "manifold");
 
-    const requestEndpoint = `/c/${communityID}/query/io.picolabs.community/description`;
+    //const communityID = await getCommunityIDByName(communityName);
+
+    const requestEndpoint = `/c/${communityEci}/query/io.picolabs.community/description`;
 
     // Send API Request
     const response = await postFetchRequest(requestEndpoint, {});

@@ -93,6 +93,51 @@ async function getChildEciByName(parentEci, childName) {
 }
 
 /**
+ * Performs a deep search for a child pico by its display name.
+ * * @async
+ * @function getCommunityEciByName
+ * @param {string} parentEci - The ECI of the parent pico.
+ * @param {string} communityName - The name string to match.
+ * @returns {Promise<string|null>} The primary ECI of the community if found, otherwise null.
+ * @throws {Error} If the parent pico cannot be queried.
+ */
+async function getCommunityEciByName(parentEci, communityName) {
+  try {
+    const requestEndpoint = `/c/${parentEci}/query/io.picolabs.subscription/established`;
+    const response = await postFetchRequest(requestEndpoint, {});
+    if (!response.ok)
+      throw new Error(`Failed to query parent: ${response.status}`);
+
+    const subscriptions = await response.json();
+
+    for (const sub of subscriptions) {
+      // In Wrangler subscriptions, the name is often stored in the 'their_role' 
+      // or we can query the specific Pico's name ruleset using their ECI (Tx)
+      const targetEci = sub.Tx; 
+
+      try {
+        const nameUrl = `/c/${targetEci}/query/io.picolabs.pico-engine-ui/name`;
+        const nameResp = await postFetchRequest(nameUrl, {});
+
+        if (nameResp.ok) {
+          const actualName = await nameResp.json();
+          if (actualName === communityName) {
+            return targetEci;
+          }
+        }
+      } catch (err) {
+        continue;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error finding community "${communityName}":`, error.message);
+    return null;
+  }
+}
+
+/**
  * Finds an ECI on a pico by searching for a specific channel tag.
  * * @async
  * @function getECIByTag
@@ -106,6 +151,12 @@ async function getECIByTag(owner_eci, tag) {
     const requestEndpoint = `/c/${owner_eci}/query/io.picolabs.pico-engine-ui/pico`;
     const response = await postFetchRequest(requestEndpoint, {});
     const data = await response.json();
+
+    // ADD THIS GUARD: Ensure data and data.channels exist and is an array
+    if (!data || !Array.isArray(data.channels)) {
+      console.warn(`No channels found for Pico ${picoEci}. Response:`, data);
+      return null;
+    }
 
     const channels = data.channels;
 
@@ -207,6 +258,7 @@ module.exports = {
   getManifoldECI,
   getECIByTag,
   getChildEciByName,
+  getCommunityEciByName,
   getThingManifoldChannel,
   traverseHierarchy,
   getSkillsRegistryECI,
