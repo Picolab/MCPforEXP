@@ -14,7 +14,7 @@ Finally, working with the Manifold Assistant to ensure accurate information deli
 
 We used the Model Context Protocol when designing our chatbot to limit its responses down to the strict capabilities and functions as defined in our documents. Direct API calls enacted by the bot could easily result in more errors caused by hallucination, but also makes our application less flexible with new functions or skills.
 
-[insert stdio part here].
+For the transport layer, we chose stdio over HTTP. This decision prioritized security and local simplicity and by using standard input/output, we eliminated the need to expose network ports or manage complex authentication for a web-based endpoint.
 
 ## What would our team do differently if we had an opportunity to start the project over?
 
