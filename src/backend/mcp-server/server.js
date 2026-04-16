@@ -39,13 +39,19 @@ const {
   manifold_add_thing_to_community,
   manifold_get_community_things,
   manifold_get_community_description,
-  manifold_remove_community
+  manifold_remove_community,
 } = require("../krl-operation.js");
 
 function asJsonContent(obj) {
   return [{ type: "text", text: JSON.stringify(obj, null, 2) }];
 }
 
+/**
+ * KRL OPERATION WRAPPERS:
+ * These functions bridge the MCP world to the KRL world.
+ * - QUERIES (e.g., getNote): These request the current state of a Pico.
+ * - EVENTS (e.g., addNote): These send an event to a Pico to trigger a state change.
+ */
 function toolHandler(fn) {
   return async (args) => {
     const result = await fn(args);
@@ -61,6 +67,15 @@ async function main() {
 
   // NOTE: The Node MCP SDK expects argument schemas as Zod, which Inspector can render.
   // We still keep `src/mcp/tools.js` for human-readable JSON schema + docs, but register Zod here.
+
+  /**
+   * SCHEMA STRATEGY:
+   * The Node MCP SDK uses Zod for runtime validation and automatic JSON Schema generation.
+   * 1. ZOD: Defines the arguments below.
+   * 2. MCP SDK: Automatically converts Zod objects to standard JSON Schema.
+   * 3. CLIENT: Our index.js client then sanitizes that JSON Schema specifically for
+   * Amazon Bedrock's strict Converse API requirements.
+   */
 
   server.tool(
     "manifold_getThings",
@@ -231,22 +246,36 @@ async function main() {
     "manifold_create_community",
     "Create a new digital community Pico. Provide a descriptive name and a separate description.",
     {
-      communityName: z.string().describe("Descriptive name (e.g. 'School Items')"),
-      description: z.string().describe("Description for the new community (e.g. 'supplies and wearables intended to be used at school.'"),
+      communityName: z
+        .string()
+        .describe("Descriptive name (e.g. 'School Items')"),
+      description: z
+        .string()
+        .describe(
+          "Description for the new community (e.g. 'supplies and wearables intended to be used at school.'",
+        ),
       id: z.string().optional(),
     },
-    toolHandler(({ communityName, description, id }) => manifold_create_community(communityName, description, id)),
+    toolHandler(({ communityName, description, id }) =>
+      manifold_create_community(communityName, description, id),
+    ),
   );
 
   server.tool(
     "manifold_add_thing_to_community",
     "Add a thing Pico to a community Pico of your choice. Please provide the name of both the thing Pico and community Pico in question.",
     {
-      thingName: z.string().describe("The name of the thing Pico that will be added to the community"),
+      thingName: z
+        .string()
+        .describe(
+          "The name of the thing Pico that will be added to the community",
+        ),
       communityName: z.string().describe("The name of the community Pico"),
       id: z.string().optional(),
     },
-    toolHandler(({ thingName, communityName, id }) => manifold_add_thing_to_community(thingName, communityName, id)),
+    toolHandler(({ thingName, communityName, id }) =>
+      manifold_add_thing_to_community(thingName, communityName, id),
+    ),
   );
 
   server.tool(
@@ -256,7 +285,9 @@ async function main() {
       communityName: z.string().describe("The name of the community Pico"),
       id: z.string().optional(),
     },
-    toolHandler(({ communityName, id }) => manifold_get_community_things(communityName, id)),
+    toolHandler(({ communityName, id }) =>
+      manifold_get_community_things(communityName, id),
+    ),
   );
 
   server.tool(
@@ -266,7 +297,9 @@ async function main() {
       communityName: z.string().describe("The name of the community Pico"),
       id: z.string().optional(),
     },
-    toolHandler(({ communityName, id }) => manifold_get_community_description(communityName, id)),
+    toolHandler(({ communityName, id }) =>
+      manifold_get_community_description(communityName, id),
+    ),
   );
 
   server.tool(
@@ -276,9 +309,19 @@ async function main() {
       communityName: z.string().describe("The name of the community Pico"),
       id: z.string().optional(),
     },
-    toolHandler(({ communityName, id }) => manifold_remove_community(communityName, id))
+    toolHandler(({ communityName, id }) =>
+      manifold_remove_community(communityName, id),
+    ),
   );
 
+  /**
+   * TRANSPORT CHOICE: Stdio (Standard Input/Output)
+   * We use StdioServerTransport because this server is designed to run as a
+   * child process of the MCP Client (e.g., a local Node app or an IDE).
+   * * WHY: It's zero-config (no ports to manage) and highly secure for local use.
+   * ALTERNATIVE: SSE (Server-Sent Events) would be used if this server were
+   * hosted on a remote URL (e.g., AWS Lambda or an EC2 instance).
+   */
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
