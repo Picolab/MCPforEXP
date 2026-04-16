@@ -10,6 +10,15 @@ const {
 const { picoHasRuleset, installRuleset } = require("./utility/api-utility.js");
 const { postFetchRequest } = require("./utility/http-utility.js");
 
+/**
+ * PICO ENGINE COMMUNICATION STRATEGY:
+ * We do not use hardcoded ECIs (Event Channel Identifiers) because Picos
+ * are dynamic and their ECIs can change if they are recreated or moved.
+ * * THE PATTERN:
+ * 1. Traverse the hierarchy from the Root Pico to find the Manifold Pico.
+ * 2. Use that discovered ECI to query the state of the system.
+ */
+
 async function main() {
   console.log(await traverseHierarchy());
 }
@@ -85,6 +94,15 @@ async function createThing(thingName) {
   }*/
 
   console.log("traverseHierarchy result in createThing:", manifoldEci);
+
+  // We use the '/event-wait/' endpoint here.
+  /**
+   * KRL LAYER: event-wait
+   * Standard '/event/' is fire-and-forget. Because Pico creation and ruleset
+   * installation are asynchronous and involve multiple rules firing in sequence,
+   * we use 'event-wait' to ensure the engine finishes processing the primary
+   * event before we begin our discovery polling loop.
+   */
   const requestEndpoint = `/c/${manifoldEci}/event-wait/manifold/create_thing`;
 
   try {
@@ -239,8 +257,7 @@ async function installSkillForThing(thingName, skillName) {
     throw new Error(`Thing "${thingName}" not found`);
   }
 
-  const targetEci =
-    skillDef.installOn === "engine" ? engineEci : engineEci; // currently both use the child pico ECI
+  const targetEci = skillDef.installOn === "engine" ? engineEci : engineEci; // currently both use the child pico ECI
 
   const alreadyInstalled = await picoHasRuleset(targetEci, skillDef.rid);
   if (alreadyInstalled) {
@@ -340,7 +357,10 @@ async function manifold_change_thing_name(thingName, changedName) {
   const eci = await traverseHierarchy();
 
   const requestEndpoint = `/c/${eci}/event/manifold/change_thing_name`;
-  const response = await postFetchRequest(requestEndpoint, { picoID, changedName });
+  const response = await postFetchRequest(requestEndpoint, {
+    picoID,
+    changedName,
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -419,6 +439,13 @@ async function setSquareTag(thingName, tagId, domain) {
  */
 async function scanTag(tagId, domain) {
   try {
+    /**
+     * HIERARCHY TRAVERSAL:
+     * To find tag info, we must navigate the Pico tree:
+     * Root Pico -> Tag Registry Pico -> Registration Channel.
+     * This demonstrates the "Discovery" aspect of an ECI—instead of
+     * storing a static ID, we find the actor responsible for the data.
+     */
     const rootECI = await getRootECI();
     console.log("Root ECI:", rootECI);
     const tagRegistryECI = await getChildEciByName(rootECI, "Tag Registry");
@@ -619,7 +646,7 @@ async function createCommunity(communityName, description) {
   try {
     const response = await postFetchRequest(requestEndpoint, {
       name: communityName,
-      description: description
+      description: description,
     });
 
     if (!response.ok) {
@@ -788,5 +815,5 @@ module.exports = {
   listThingsFromCommunity,
   getCommunityDescription,
   deleteCommunity,
-  getCommunityIDByName
+  getCommunityIDByName,
 };

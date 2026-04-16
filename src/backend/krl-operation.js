@@ -7,6 +7,16 @@ const { okResponse, errResponse } = require("./krl-json");
  * { id, ok, data, error?, meta }
  */
 
+/**
+ * UNIFORM ENVELOPE DESIGN:
+ * Every function here returns a standard 'KrlResponse'.
+ * * - KIND: "query" -> Represents a read-only request to a Pico's state.
+ * In KRL, these are side-effect free.
+ * - KIND: "event" -> Represents a state-changing signal sent to a Pico.
+ * In KRL, these trigger rules that modify persistence.
+ * * This distinction is critical for the Manifold architecture's reliability.
+ */
+
 // --- manifold_pico queries ---
 
 /**
@@ -206,6 +216,15 @@ async function getNote(thingName, title, id) {
 }
 
 /**
+ * MANIFOLD CONCEPT: DYNAMIC SKILL DISCOVERY
+ * Because Manifold Picos are dynamic, we cannot hard-code tool availability.
+ * 1. This function queries the Pico to see which rulesets are currently installed.
+ * 2. It returns a 'skills' list (e.g., ["journal"]).
+ * 3. The MCP Client uses this list to filter which tools are "active" for the LLM.
+ * This ensures the LLM never tries to call 'addNote' on a Thing that doesn't
+ * have the 'journal' ruleset installed.
+ */
+/**
  * Derives which Skills are installed on a Thing by checking its installed rulesets.
  * @param {string} thingName
  * @param {string|number} id
@@ -274,7 +293,7 @@ async function manifold_getCommunities(id) {
  * @function manifold_create_community
  * Creates a new thing pico and waits for it to be initialized.
  * Uses createThing internally which waits for completion and returns the thing's ECI.
- * @param {string} communityName 
+ * @param {string} communityName
  */
 async function manifold_create_community(communityName, description, id) {
   try {
@@ -292,9 +311,9 @@ async function manifold_create_community(communityName, description, id) {
 /**
  * @async
  * @function manifold_add_thing_to_community
- * @param {string} thingName 
- * @param {string} communityName 
- * @param {string|number} id 
+ * @param {string} thingName
+ * @param {string} communityName
+ * @param {string|number} id
  */
 async function manifold_add_thing_to_community(thingName, communityName, id) {
   try {
@@ -312,8 +331,8 @@ async function manifold_add_thing_to_community(thingName, communityName, id) {
 /**
  * @async
  * @function manifold_get_community_things
- * @param {string} communityName 
- * @param {string|number} id 
+ * @param {string} communityName
+ * @param {string|number} id
  */
 async function manifold_get_community_things(communityName, id) {
   try {
@@ -331,8 +350,8 @@ async function manifold_get_community_things(communityName, id) {
 /**
  * @async
  * @function manifold_get_community_description
- * @param {string} communityName 
- * @param {string|number} id 
+ * @param {string} communityName
+ * @param {string|number} id
  */
 async function manifold_get_community_description(communityName, id) {
   try {
@@ -340,7 +359,11 @@ async function manifold_get_community_description(communityName, id) {
     return okResponse({
       id,
       data,
-      meta: { kind: "event", type: "get_community_description", httpStatus: 200 },
+      meta: {
+        kind: "event",
+        type: "get_community_description",
+        httpStatus: 200,
+      },
     });
   } catch (error) {
     return errResponse({ id, code: "TIMEOUT_ERROR", message: error.message });
@@ -389,5 +412,5 @@ module.exports = {
   manifold_add_thing_to_community,
   manifold_get_community_things,
   manifold_get_community_description,
-  manifold_remove_community
+  manifold_remove_community,
 };

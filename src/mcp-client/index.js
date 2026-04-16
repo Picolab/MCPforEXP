@@ -43,6 +43,18 @@ class MCPClient extends EventEmitter {
     const toolsResult = await this.mcp.listTools();
 
     this.tools = toolsResult.tools.map((tool) => {
+      /**
+       * SCHEMA TRANSFORMATION PIPELINE:
+       * 1. MCP SDK: Tools often arrive defined via Zod (if using the TS SDK).
+       * 2. JSON SCHEMA: The SDK converts Zod to standard JSON Schema.
+       * 3. BEDROCK: Bedrock's Converse API is strict and expects a specific subset:
+       * - It requires 'type: "object"'.
+       * - It rejects '$schema' metadata tags.
+       * - It often fails on 'additionalProperties: false'.
+       * * The following logic sanitizes the MCP-provided schema into a "Bedrock-flavored"
+       * JSON Schema to ensure the tool call doesn't throw a validation error at the API.
+       */
+
       // Ensure inputSchema is a valid JSON Schema object for Bedrock
       let inputSchema = tool.inputSchema;
 
@@ -170,6 +182,15 @@ class MCPClient extends EventEmitter {
 
   async connectToServer(serverScriptPath) {
     try {
+      /**
+       * We use StdioClientTransport here, which communicates with the MCP server
+       * via standard input/output (stdin/stdout).
+       * * WHY STDIO: It is the simplest and most secure way to manage local MCP servers
+       * as "sidecar" processes. The server's lifecycle is tied directly to this client.
+       * * ALTERNATIVE: SSE (Server-Sent Events) or WebSockets. These are used when the
+       * MCP server is hosted remotely or needs to handle multiple concurrent clients
+       * over HTTP.
+       */
       const command = serverScriptPath.endsWith(".py")
         ? process.platform === "win32"
           ? "python"
@@ -188,6 +209,13 @@ class MCPClient extends EventEmitter {
   }
 
   async processQuery(query) {
+    /**
+     * KRL INTERACTION LAYER:
+     * When interacting with the KRL/Manifold backend, we distinguish between:
+     * 1. QUERIES: Requesting data or state from a Thing (idempotent/read-only).
+     * 2. EVENTS: Triggering a state change or action on a Thing.
+     */
+
     // 1. Fetch history and the system prompt
     const fullHistory = await getManifoldContext();
     const history = Array.isArray(fullHistory) ? fullHistory.slice(-10) : [];
@@ -251,6 +279,12 @@ class MCPClient extends EventEmitter {
             // If we just derived Skills for a Thing, update currentSkills immediately
             // so subsequent tool selection in this same query uses the correct subset.
             if (name === "manifold_getThingSkills") {
+              /**
+               * Because a Thing's capabilities (Skills) can change based on its
+               * current rulesets, we must discover them dynamically at runtime.
+               * We use the ECI to query the Thing's manifest, which tells the LLM
+               * which "Skills" (and thus which MCP tools) are currently valid to call.
+               */
               try {
                 const parsed = JSON.parse(text);
                 const skills = parsed?.data?.skills;
@@ -314,6 +348,10 @@ class MCPClient extends EventEmitter {
         toolSpec: {
           name: tool.toolSpec.name,
           description: tool.toolSpec.description,
+          /**
+           * Bedrock's Converse API expects the schema to be wrapped in a 'json' key.
+           * Format: toolSpec -> inputSchema -> json -> { type, properties, ... }
+           */
           inputSchema: { json: tool.toolSpec.inputSchema },
         },
       }));
